@@ -23,6 +23,17 @@ function levelLabel(value: string) {
   return LEVELS.find(l => l.value === value)?.label ?? value
 }
 
+type CareerPathRow = {
+  id: string
+  title: string
+  area: string
+  category: string
+  levels: string[]
+  course_ids: string[]
+  is_published: boolean
+  created_at: string
+}
+
 export default async function CareerPathsPage() {
   const supabase = createServiceClient()
   const { data: paths } = await supabase
@@ -66,7 +77,7 @@ export default async function CareerPathsPage() {
                 </td>
               </tr>
             )}
-            {paths?.map(p => (
+            {(paths as CareerPathRow[] | null)?.map(p => (
               <tr key={p.id} className="hover:bg-gray-50 transition-colors">
 
                 {/* Title */}

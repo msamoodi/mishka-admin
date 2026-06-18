@@ -22,8 +22,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   if (!profileResult.data) notFound()
 
   const authUser = authResult.data?.user ?? null
-  const incompleted = (userCoursesResult.data ?? []).filter(c => c.status !== "completed").length
-  const completed   = (userCoursesResult.data ?? []).filter(c => c.status === "completed").length
+  const incompleted = (userCoursesResult.data ?? []).filter((c: { status: string }) => c.status !== "completed").length
+  const completed   = (userCoursesResult.data ?? []).filter((c: { status: string }) => c.status === "completed").length
 
   return (
     <div className="p-8 max-w-4xl">

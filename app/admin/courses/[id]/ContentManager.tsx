@@ -256,7 +256,7 @@ const ContentManager = forwardRef<
       <h2 className="text-base font-semibold text-gray-900 mb-4">Lessons & Quizzes</h2>
 
       {/* Lesson list */}
-      {(lessons.length > 0 || drafts[NEW_KEY]) && (
+      {(lessons.length > 0 || Object.keys(drafts).some(isNewKey)) && (
         <div className="flex flex-col gap-1 mb-4">
           {sortedLessons.map(l => {
             const isDirty  = dirtyKeys.has(l.id)

@@ -85,7 +85,7 @@ export default async function DashboardPage() {
   }
 
   const popularCourses = Object.entries(courseCount)
-    .map(([id, count]) => ({ id, count, ...(courseInfo[id] ?? { course_name: id, category: "", level: "" }) }))
+    .map(([id, count]) => ({ ...(courseInfo[id] ?? { course_name: id, category: "", level: "" }), id, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 

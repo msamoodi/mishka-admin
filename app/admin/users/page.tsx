@@ -15,10 +15,11 @@ export default async function UsersPage() {
   ])
 
   const authMap = new Map(
-    (authResult.data?.users ?? []).map(u => [u.id, u.last_sign_in_at ?? null])
+    (authResult.data?.users ?? []).map((u: { id: string; last_sign_in_at?: string | null }) => [u.id, u.last_sign_in_at ?? null])
   )
 
-  const users = (profilesResult.data ?? []).map(p => ({
+  type ProfileRow = { id: string; first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null; rank: string | null; completed_courses_count: number | null }
+  const users = (profilesResult.data ?? [] as ProfileRow[]).map((p: ProfileRow) => ({
     ...p,
     last_sign_in_at: authMap.get(p.id) ?? null,
   }))
