@@ -111,10 +111,33 @@ export default function UserDetailClient({
 
   const [selectedAvatar, setSelectedAvatar] = useState<string>(String(profile.avatar_url ?? ""))
   const [savingAvatar, setSavingAvatar] = useState(false)
+  const [isAdmin, setIsAdmin] = useState<boolean>(Boolean(profile.is_admin))
+  const [savingAdmin, setSavingAdmin] = useState(false)
+  const [confirmAdmin, setConfirmAdmin] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
 
   const avatarDirty = selectedAvatar !== String(profile.avatar_url ?? "")
+
+  const handleToggleAdmin = async () => {
+    setSavingAdmin(true)
+    const next = !isAdmin
+    const res = await fetch("/api/admin/update-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, is_admin: next }),
+    })
+    const json = await res.json()
+    setSavingAdmin(false)
+    setConfirmAdmin(false)
+    if (!res.ok || json.error) {
+      setToast({ message: json.error || "Failed to update admin status", type: "error" })
+    } else {
+      setIsAdmin(next)
+      setToast({ message: next ? "User is now an admin" : "Admin access removed", type: "success" })
+      router.refresh()
+    }
+  }
 
   const handleSaveAvatar = async () => {
     setSavingAvatar(true)
@@ -141,17 +164,59 @@ export default function UserDetailClient({
 
         {/* ── Avatar + name card ──────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-start gap-6">
+          <div className="flex items-start gap-6 justify-between">
 
+            <div className="flex items-start gap-6">
             {/* Current avatar */}
             <AvatarImg url={selectedAvatar || null} size={80} name={String(profile.first_name ?? displayName)} />
 
-            <div className="flex-1">
+            <div>
               <h2 className="text-base font-semibold text-gray-900">{String(displayName)}</h2>
               <p className="text-sm text-gray-500">{String(profile.email ?? authUser?.email ?? "—")}</p>
               <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RANK_COLOR[String(profile.rank ?? "")] ?? "bg-gray-100 text-gray-500"}`}>
                 {String(profile.rank ?? "—")}
               </span>
+              {isAdmin && (
+                <span className="mt-2 ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                  Admin
+                </span>
+              )}
+            </div>
+            </div>
+
+            {/* Make / Revoke Admin */}
+            <div className="flex flex-col items-end gap-2">
+              {confirmAdmin ? (
+                <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-xl">
+                  <span className="text-xs text-red-700 font-medium">
+                    {isAdmin ? "Revoke admin access?" : "Grant admin access?"}
+                  </span>
+                  <button
+                    onClick={handleToggleAdmin}
+                    disabled={savingAdmin}
+                    className="h-7 px-3 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {savingAdmin ? "…" : "Yes"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmAdmin(false)}
+                    className="h-7 px-3 bg-white border border-gray-200 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmAdmin(true)}
+                  className={`h-8 px-4 text-xs font-medium rounded-lg border transition-colors ${
+                    isAdmin
+                      ? "border-red-200 text-red-600 hover:bg-red-50"
+                      : "border-violet-200 text-violet-700 hover:bg-violet-50"
+                  }`}
+                >
+                  {isAdmin ? "Revoke Admin" : "Make Admin"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -204,6 +269,7 @@ export default function UserDetailClient({
           <InfoRow label="Interested Areas"        value={str(profile.interested_areas)} />
           <InfoRow label="Notifications Enabled"   value={str(profile.notifications_enabled)} />
           <InfoRow label="Account Status"          value={str(profile.account_status)} />
+          <InfoRow label="Admin"                   value={isAdmin ? "Yes" : "No"} />
         </div>
 
         {/* ── Stats ───────────────────────────────────────────────────── */}

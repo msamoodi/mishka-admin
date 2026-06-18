@@ -63,26 +63,32 @@ export default function UsersClient({ users }: { users: User[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [pageSize, setPageSize] = useState(20)
+  const [page, setPage] = useState(1)
 
   const filtered = query.trim()
     ? users.filter(u => u.email?.toLowerCase().includes(query.toLowerCase()))
     : users
 
-  const allSelected = filtered.length > 0 && filtered.every(u => selected.has(u.id))
-  const someSelected = filtered.some(u => selected.has(u.id))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const allSelected = paginated.length > 0 && paginated.every(u => selected.has(u.id))
+  const someSelected = paginated.some(u => selected.has(u.id))
   const selectedCount = [...selected].filter(id => filtered.some(u => u.id === id)).length
 
   const toggleAll = () => {
     if (allSelected) {
       setSelected(prev => {
         const next = new Set(prev)
-        filtered.forEach(u => next.delete(u.id))
+        paginated.forEach(u => next.delete(u.id))
         return next
       })
     } else {
       setSelected(prev => {
         const next = new Set(prev)
-        filtered.forEach(u => next.add(u.id))
+        paginated.forEach(u => next.add(u.id))
         return next
       })
     }
@@ -131,7 +137,7 @@ export default function UsersClient({ users }: { users: User[] }) {
             type="text"
             placeholder="Search by email…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setPage(1) }}
             className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
           />
           {query && (
@@ -206,7 +212,7 @@ export default function UsersClient({ users }: { users: User[] }) {
                 </td>
               </tr>
             )}
-            {filtered.map(u => {
+            {paginated.map(u => {
               const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—"
               const isSelected = selected.has(u.id)
               return (
@@ -273,6 +279,51 @@ export default function UsersClient({ users }: { users: User[] }) {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+        <div className="flex items-center gap-2">
+          <span>Rows per page:</span>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+            className="h-8 px-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+          >
+            {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="mr-2">
+            {filtered.length === 0 ? "0" : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filtered.length)}`} of {filtered.length}
+          </span>
+          <button
+            onClick={() => setPage(1)}
+            disabled={currentPage === 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="First page"
+          >«</button>
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="Previous page"
+          >‹</button>
+          <span className="px-2 font-medium text-gray-700">{currentPage} / {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="Next page"
+          >›</button>
+          <button
+            onClick={() => setPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="Last page"
+          >»</button>
+        </div>
       </div>
     </div>
   )
