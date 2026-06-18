@@ -18,10 +18,16 @@ const LEVEL_COLOR: Record<string, string> = {
 
 export default async function CoursesPage() {
   const supabase = await createClient()
-  const { data: courses } = await supabase
+  const { data: rawCourses } = await supabase
     .from("courses")
-    .select("id, slug, course_name, category, level, lesson_count, quiz_count, is_published, display_order")
+    .select("id, slug, course_name, category, level, is_published, display_order, lessons(count), quiz_questions(count)")
     .order("display_order", { ascending: true })
+
+  const courses = (rawCourses ?? []).map((c) => ({
+    ...c,
+    lesson_count: (c.lessons as unknown as { count: number }[])?.[0]?.count ?? 0,
+    quiz_count: (c.quiz_questions as unknown as { count: number }[])?.[0]?.count ?? 0,
+  }))
 
   return (
     <div className="p-8">
