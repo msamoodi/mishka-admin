@@ -1,5 +1,6 @@
 "use client"
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 type User = {
@@ -57,11 +58,59 @@ function fmt(iso: string | null) {
 }
 
 export default function UsersClient({ users }: { users: User[] }) {
+  const router = useRouter()
   const [query, setQuery] = useState("")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
   const filtered = query.trim()
     ? users.filter(u => u.email?.toLowerCase().includes(query.toLowerCase()))
     : users
+
+  const allSelected = filtered.length > 0 && filtered.every(u => selected.has(u.id))
+  const someSelected = filtered.some(u => selected.has(u.id))
+  const selectedCount = [...selected].filter(id => filtered.some(u => u.id === id)).length
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(prev => {
+        const next = new Set(prev)
+        filtered.forEach(u => next.delete(u.id))
+        return next
+      })
+    } else {
+      setSelected(prev => {
+        const next = new Set(prev)
+        filtered.forEach(u => next.add(u.id))
+        return next
+      })
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleDelete = () => {
+    const ids = [...selected].filter(id => filtered.some(u => u.id === id))
+    startTransition(async () => {
+      const res = await fetch("/api/admin/delete-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: ids }),
+      })
+      if (res.ok) {
+        setSelected(new Set())
+        setConfirmDelete(false)
+        router.refresh()
+      }
+    })
+  }
 
   return (
     <div className="p-8">
@@ -74,8 +123,8 @@ export default function UsersClient({ users }: { users: User[] }) {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Search + bulk actions row */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="relative w-full max-w-sm">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
           <input
@@ -94,12 +143,53 @@ export default function UsersClient({ users }: { users: User[] }) {
             </button>
           )}
         </div>
+
+        {selectedCount > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">{selectedCount} selected</span>
+            {confirmDelete ? (
+              <>
+                <span className="text-sm text-red-600 font-medium">Delete {selectedCount} user{selectedCount > 1 ? "s" : ""}?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={isPending}
+                  className="h-9 px-4 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {isPending ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="h-9 px-4 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="h-9 px-4 bg-red-50 text-red-600 border border-red-200 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+              >
+                Delete selected
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
+              {/* Select all checkbox */}
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                  onChange={toggleAll}
+                  className="w-4 h-4 rounded border-gray-300 accent-gray-900 cursor-pointer"
+                />
+              </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500 w-32">User ID</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Rank</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Avatar</th>
@@ -111,15 +201,28 @@ export default function UsersClient({ users }: { users: User[] }) {
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                   {query ? `No users matching "${query}"` : "No users yet"}
                 </td>
               </tr>
             )}
             {filtered.map(u => {
               const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—"
+              const isSelected = selected.has(u.id)
               return (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={u.id}
+                  className={`hover:bg-gray-50 transition-colors ${isSelected ? "bg-blue-50/60" : ""}`}
+                >
+                  {/* Row checkbox */}
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleOne(u.id)}
+                      className="w-4 h-4 rounded border-gray-300 accent-gray-900 cursor-pointer"
+                    />
+                  </td>
 
                   {/* ID */}
                   <td className="px-4 py-3">
