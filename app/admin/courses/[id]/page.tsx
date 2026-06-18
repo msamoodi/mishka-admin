@@ -9,10 +9,11 @@ export default async function EditCoursePage({ params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: course }, { data: lessons }, { data: quizQuestions }] = await Promise.all([
+  const [{ data: course }, { data: lessons }, { data: quizQuestions }, { data: objectives }] = await Promise.all([
     supabase.from("courses").select("*").eq("id", id).single(),
     supabase.from("lessons").select("*").eq("course_id", id).order("order_index"),
     supabase.from("quiz_questions").select("*").eq("course_id", id).order("order_index"),
+    supabase.from("course_objectives").select("id, objective, order_index").eq("course_id", id).order("order_index"),
   ])
 
   if (!course) notFound()
@@ -30,6 +31,7 @@ export default async function EditCoursePage({ params }: { params: Promise<{ id:
         course={course}
         lessons={lessons ?? []}
         quizQuestions={quizQuestions ?? []}
+        objectives={objectives ?? []}
       />
     </div>
   )

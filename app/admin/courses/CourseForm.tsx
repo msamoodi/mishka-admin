@@ -2,6 +2,8 @@
 import { useState, forwardRef, useImperativeHandle } from "react"
 import FolderImagePicker from "@/components/FolderImagePicker"
 
+type ObjectiveItem = { key: number; objective: string }
+
 type CourseFormData = {
   id?: string
   course_name: string
@@ -38,8 +40,11 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
 
-const CourseForm = forwardRef<CourseFormHandle, { initial?: Partial<CourseFormData> }>(
-  function CourseForm({ initial }, ref) {
+const CourseForm = forwardRef<CourseFormHandle, {
+  initial?: Partial<CourseFormData>
+  initialObjectives?: { id: string; objective: string; order_index: number }[]
+}>(
+  function CourseForm({ initial, initialObjectives }, ref) {
     const isEdit = !!initial?.id
 
     const [form, setForm] = useState<CourseFormData>({
@@ -58,6 +63,20 @@ const CourseForm = forwardRef<CourseFormHandle, { initial?: Partial<CourseFormDa
 
     const set = (k: keyof CourseFormData, v: unknown) =>
       setForm(f => ({ ...f, [k]: v }))
+
+    const [objectives, setObjectives] = useState<ObjectiveItem[]>(
+      (initialObjectives ?? []).map((o, i) => ({ key: i, objective: o.objective }))
+    )
+    const [nextKey, setNextKey] = useState((initialObjectives?.length ?? 0))
+
+    const addObjective = () => {
+      setObjectives(prev => [...prev, { key: nextKey, objective: "" }])
+      setNextKey(k => k + 1)
+    }
+    const removeObjective = (key: number) =>
+      setObjectives(prev => prev.filter(o => o.key !== key))
+    const updateObjective = (key: number, value: string) =>
+      setObjectives(prev => prev.map(o => o.key === key ? { ...o, objective: value } : o))
 
     useImperativeHandle(ref, () => ({
       async save() {
@@ -85,9 +104,23 @@ const CourseForm = forwardRef<CourseFormHandle, { initial?: Partial<CourseFormDa
         const json = await res.json()
 
         if (!res.ok || json.error) return { ok: false, error: json.error || "Save failed" }
-        return { ok: true, id: json.id }
+
+        // Save objectives
+        const courseId = json.id ?? form.id
+        const objRes = await fetch("/api/admin/save-objectives", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            course_id: courseId,
+            objectives: objectives.filter(o => o.objective.trim()),
+          }),
+        })
+        const objJson = await objRes.json()
+        if (!objRes.ok || objJson.error) return { ok: false, error: objJson.error || "Failed to save objectives" }
+
+        return { ok: true, id: courseId }
       },
-    }), [form, isEdit])
+    }), [form, isEdit, objectives])
 
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-5">
@@ -180,6 +213,43 @@ const CourseForm = forwardRef<CourseFormHandle, { initial?: Partial<CourseFormDa
             placeholder="/images/courses/product-design/thumbnail.png"
           />
         </Field>
+
+        {/* Objectives list */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">Objectives</label>
+            <button
+              type="button"
+              onClick={addObjective}
+              className="h-7 px-3 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              + Add
+            </button>
+          </div>
+          {objectives.length === 0 && (
+            <p className="text-xs text-gray-400 py-1">No objectives yet. Click "+ Add" to create one.</p>
+          )}
+          <div className="flex flex-col gap-2">
+            {objectives.map((obj, idx) => (
+              <div key={obj.key} className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
+                <input
+                  value={obj.objective}
+                  onChange={e => updateObjective(obj.key, e.target.value)}
+                  placeholder="What learners will be able to do…"
+                  className={INPUT + " flex-1"}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeObjective(obj.key)}
+                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <label className="flex items-center gap-2.5 cursor-pointer select-none">
           <input

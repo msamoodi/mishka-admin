@@ -12,11 +12,13 @@ export default function CourseEditClient({
   course,
   lessons,
   quizQuestions,
+  objectives,
 }: {
   courseId: string
   course: Record<string, unknown>
   lessons: any[]
   quizQuestions: any[]
+  objectives: { id: string; objective: string; order_index: number }[]
 }) {
   const router = useRouter()
   const courseRef  = useRef<CourseFormHandle>(null)
@@ -76,7 +78,7 @@ export default function CourseEditClient({
     <>
       <Toast toast={toast} onClose={closeToast} />
 
-      <CourseForm ref={courseRef} initial={course as any} />
+      <CourseForm ref={courseRef} initial={course as any} initialObjectives={objectives} />
 
       <ContentManager
         ref={contentRef}
