@@ -78,15 +78,19 @@ export default function CourseEditClient({
     <>
       <Toast toast={toast} onClose={closeToast} />
 
-      <CourseForm ref={courseRef} initial={course as any} initialObjectives={objectives} />
+      <div className="grid grid-cols-[1fr_1fr] gap-8 items-start">
+        {/* Left — course details + objectives */}
+        <CourseForm ref={courseRef} initial={course as any} initialObjectives={objectives} />
 
-      <ContentManager
-        ref={contentRef}
-        courseId={courseId}
-        initialLessons={lessons}
-        initialQuizQuestions={quizQuestions}
-        onActiveChange={handleActiveChange}
-      />
+        {/* Right — lessons & quizzes */}
+        <ContentManager
+          ref={contentRef}
+          courseId={courseId}
+          initialLessons={lessons}
+          initialQuizQuestions={quizQuestions}
+          onActiveChange={handleActiveChange}
+        />
+      </div>
 
       {/* ── Bottom action bar ─────────────────────────────────────────────── */}
       <div className="mt-8 pt-5 border-t border-gray-200">

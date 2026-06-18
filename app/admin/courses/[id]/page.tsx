@@ -19,7 +19,7 @@ export default async function EditCoursePage({ params }: { params: Promise<{ id:
   if (!course) notFound()
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8 max-w-7xl">
       <div className="mb-6">
         <Link href="/admin/courses" className="text-sm text-gray-500 hover:text-gray-900">← Courses</Link>
         <h1 className="text-xl font-bold text-gray-900 mt-1">Edit Course</h1>
