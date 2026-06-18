@@ -2,17 +2,17 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
-export default function DeleteCourseButton({ id, name }: { id: string; name: string }) {
+export default function DeleteCareerPathButton({ id, title }: { id: string; title: string }) {
   const router = useRouter()
   const [confirming, setConfirming] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleDelete = async () => {
     setLoading(true)
-    await fetch("/api/admin/delete-course", {
-      method:  "POST",
+    await fetch("/api/admin/delete-career-path", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ id }),
+      body: JSON.stringify({ id }),
     })
     router.refresh()
   }
@@ -20,7 +20,7 @@ export default function DeleteCourseButton({ id, name }: { id: string; name: str
   if (confirming) {
     return (
       <div className="flex items-center gap-1">
-        <span className="text-xs text-gray-500">Sure?</span>
+        <span className="text-xs text-gray-500">Delete &quot;{title}&quot;?</span>
         <button
           onClick={handleDelete}
           disabled={loading}

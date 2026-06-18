@@ -1,0 +1,176 @@
+"use client"
+import { useState } from "react"
+import Link from "next/link"
+
+type User = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  avatar_url: string | null
+  rank: string | null
+  completed_courses_count: number | null
+  last_sign_in_at: string | null
+}
+
+const RANK_COLOR: Record<string, string> = {
+  starter:  "bg-gray-100 text-gray-600",
+  bronze:   "bg-amber-50 text-amber-700",
+  silver:   "bg-slate-50 text-slate-600",
+  gold:     "bg-yellow-50 text-yellow-700",
+  platinum: "bg-cyan-50 text-cyan-700",
+  diamond:  "bg-blue-50 text-blue-700",
+  sapphire: "bg-indigo-50 text-indigo-700",
+  emerald:  "bg-green-50 text-green-700",
+  ruby:     "bg-red-50 text-red-700",
+  legend:   "bg-purple-50 text-purple-700",
+}
+
+function Avatar({ url, name }: { url: string | null; name: string }) {
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/api/admin/image?path=${encodeURIComponent(url)}`}
+        alt={name}
+        className="w-9 h-9 rounded-full object-cover bg-gray-100"
+        onError={e => {
+          const el = e.target as HTMLImageElement
+          el.style.display = "none"
+          el.nextElementSibling?.classList.remove("hidden")
+        }}
+      />
+    )
+  }
+  return (
+    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-500">
+      {name[0]?.toUpperCase() ?? "?"}
+    </div>
+  )
+}
+
+function fmt(iso: string | null) {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) +
+    " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+}
+
+export default function UsersClient({ users }: { users: User[] }) {
+  const [query, setQuery] = useState("")
+
+  const filtered = query.trim()
+    ? users.filter(u => u.email?.toLowerCase().includes(query.toLowerCase()))
+    : users
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Users</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {filtered.length}{query ? ` of ${users.length}` : ""} users
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="mb-4">
+        <div className="relative w-full max-w-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input
+            type="text"
+            placeholder="Search by email…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-4 py-3 font-medium text-gray-500 w-32">User ID</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Rank</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Avatar</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Last Login</th>
+              <th className="px-4 py-3 w-16" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  {query ? `No users matching "${query}"` : "No users yet"}
+                </td>
+              </tr>
+            )}
+            {filtered.map(u => {
+              const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—"
+              return (
+                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+
+                  {/* ID */}
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs text-gray-400">{u.id.slice(0, 8)}…</span>
+                  </td>
+
+                  {/* Rank */}
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RANK_COLOR[u.rank ?? ""] ?? "bg-gray-100 text-gray-500"}`}>
+                      {u.rank ?? "—"}
+                    </span>
+                  </td>
+
+                  {/* Avatar */}
+                  <td className="px-4 py-3">
+                    <div className="relative inline-block">
+                      <Avatar url={u.avatar_url} name={displayName} />
+                      {!u.avatar_url && (
+                        <div className="hidden w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-500">
+                          {displayName[0]?.toUpperCase() ?? "?"}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Email + name */}
+                  <td className="px-4 py-3">
+                    <p className="text-gray-900">{u.email ?? "—"}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{displayName}</p>
+                  </td>
+
+                  {/* Last Login */}
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {fmt(u.last_sign_in_at)}
+                  </td>
+
+                  {/* Action */}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/admin/users/${u.id}`}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}

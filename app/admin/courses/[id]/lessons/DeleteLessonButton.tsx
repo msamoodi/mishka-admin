@@ -1,7 +1,6 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 
 export default function DeleteLessonButton({ id, courseId, title }: { id: string; courseId: string; title: string }) {
   const router = useRouter()
@@ -10,8 +9,11 @@ export default function DeleteLessonButton({ id, courseId, title }: { id: string
 
   const handleDelete = async () => {
     setLoading(true)
-    const supabase = createClient()
-    await supabase.from("lessons").delete().eq("id", id)
+    await fetch("/api/admin/delete-lesson", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ id }),
+    })
     router.refresh()
   }
 

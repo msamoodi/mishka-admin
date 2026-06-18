@@ -20,10 +20,15 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href="/admin/courses" className="text-sm text-gray-500 hover:text-gray-900">← Courses</Link>
-        <span className="text-gray-300 mx-2">/</span>
-        <Link href={`/admin/courses/${id}/lessons`} className="text-sm text-gray-500 hover:text-gray-900">{course.course_name}</Link>
-        <h1 className="text-xl font-bold text-gray-900 mt-1">
+        <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
+          <Link href="/admin/courses" className="hover:text-gray-700">Courses</Link>
+          <span>/</span>
+          <Link href={`/admin/courses/${id}/lessons`} className="hover:text-gray-700">{course.course_name}</Link>
+        </div>
+        <Link href={`/admin/courses/${id}/lessons`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 font-medium mb-2">
+          ← Back to {course.course_name}
+        </Link>
+        <h1 className="text-xl font-bold text-gray-900">
           {lesson.lesson_type === "quiz" ? "Edit Quiz" : "Edit Lesson"}
         </h1>
       </div>
