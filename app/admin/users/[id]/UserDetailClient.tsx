@@ -36,6 +36,11 @@ type AuthUser = {
   last_sign_in_at: string | null
 }
 
+type CareerPathOption = {
+  id: string
+  title: string
+}
+
 type UserCourse = {
   course_id: string
   status: string
@@ -98,12 +103,16 @@ export default function UserDetailClient({
   userCourses,
   calculatedCompleted,
   calculatedIncompleted,
+  allCareerPaths,
+  assignedCareerPathIds,
 }: {
   profile: Profile
   authUser: AuthUser | null
   userCourses: UserCourse[]
   calculatedCompleted: number
   calculatedIncompleted: number
+  allCareerPaths: CareerPathOption[]
+  assignedCareerPathIds: string[]
 }) {
   const router = useRouter()
   const userId = String(profile.id)
@@ -114,6 +123,8 @@ export default function UserDetailClient({
   const [isAdmin, setIsAdmin] = useState<boolean>(Boolean(profile.is_admin))
   const [savingAdmin, setSavingAdmin] = useState(false)
   const [confirmAdmin, setConfirmAdmin] = useState(false)
+  const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set(assignedCareerPathIds))
+  const [togglingPathId, setTogglingPathId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
 
@@ -136,6 +147,28 @@ export default function UserDetailClient({
       setIsAdmin(next)
       setToast({ message: next ? "User is now an admin" : "Admin access removed", type: "success" })
       router.refresh()
+    }
+  }
+
+  const handleToggleCareerPath = async (careerPathId: string) => {
+    const assigning = !assignedIds.has(careerPathId)
+    setTogglingPathId(careerPathId)
+    const next = new Set(assignedIds)
+    assigning ? next.add(careerPathId) : next.delete(careerPathId)
+    setAssignedIds(next)
+
+    const res = await fetch("/api/admin/assign-career-paths", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, careerPathId, assign: assigning }),
+    })
+    const json = await res.json()
+    setTogglingPathId(null)
+    if (!res.ok || json.error) {
+      const reverted = new Set(assignedIds)
+      assigning ? reverted.delete(careerPathId) : reverted.add(careerPathId)
+      setAssignedIds(reverted)
+      setToast({ message: json.error || "Failed to update career path", type: "error" })
     }
   }
 
@@ -293,6 +326,53 @@ export default function UserDetailClient({
           <InfoRow label="Last Active"   value={fmt(str(profile.last_active_at))} />
           <InfoRow label="Last Login"    value={fmt(authUser?.last_sign_in_at)} />
           <InfoRow label="Account Created" value={fmt(authUser?.created_at)} />
+        </div>
+
+        {/* ── Career Paths ────────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Career Paths</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {assignedIds.size} assigned
+            </p>
+          </div>
+          {allCareerPaths.length === 0 ? (
+            <p className="px-6 py-10 text-center text-gray-400 text-sm">No published career paths found</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {allCareerPaths.map((path) => {
+                const isAssigned = assignedIds.has(path.id)
+                const isToggling = togglingPathId === path.id
+                return (
+                  <label
+                    key={path.id}
+                    className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors select-none ${
+                      isAssigned ? "bg-violet-50" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isAssigned}
+                      disabled={isToggling}
+                      onChange={() => handleToggleCareerPath(path.id)}
+                      className="w-4 h-4 rounded accent-violet-600 flex-shrink-0 cursor-pointer disabled:opacity-50"
+                    />
+                    <span className={`text-sm font-medium ${isAssigned ? "text-violet-900" : "text-gray-700"}`}>
+                      {path.title}
+                    </span>
+                    {isToggling && (
+                      <span className="ml-auto text-xs text-gray-400">Saving…</span>
+                    )}
+                    {isAssigned && !isToggling && (
+                      <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                        Assigned
+                      </span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── Courses ─────────────────────────────────────────────────── */}
