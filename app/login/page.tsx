@@ -3,6 +3,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Suspense } from "react"
+import Image from "next/image"
 
 function LoginForm() {
   const router = useRouter()
@@ -45,14 +46,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Mishka Admin</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to manage content</p>
-        </div>
+    <div className="min-h-screen bg-white flex flex-col justify-end">
+      <div className="flex justify-center relative z-10 mb-[-30px]">
+        <Image src="/signin.png" alt="Mishka" width={303} height={339} priority />
+      </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-4">
+      <div className="bg-gray-100 rounded-t-3xl px-6 pt-12 pb-10">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm mx-auto">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
               {error}
@@ -66,7 +66,7 @@ function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-10 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="admin@example.com"
             />
           </div>
@@ -78,7 +78,7 @@ function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-10 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
