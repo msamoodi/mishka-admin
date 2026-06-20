@@ -46,7 +46,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-end">
+    <div className="min-h-screen bg-white flex flex-col justify-end pb-[30vh]">
       <div className="flex justify-center relative z-10 mb-[-30px]">
         <Image src="/signin.png" alt="Mishka" width={303} height={339} priority />
       </div>
