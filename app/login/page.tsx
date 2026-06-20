@@ -46,12 +46,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-end pb-[30vh]">
+    <div className="min-h-screen bg-white flex flex-col justify-end">
       <div className="flex justify-center relative z-10 mb-[-30px]">
         <Image src="/signin.png" alt="Mishka" width={303} height={339} priority />
       </div>
 
-      <div className="bg-gray-100 rounded-t-3xl px-6 pt-12 pb-10">
+      <div className="bg-gray-100 rounded-t-3xl px-6 pt-12 pb-[30vh]">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm mx-auto">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
