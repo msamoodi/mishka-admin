@@ -30,9 +30,13 @@ export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket
   const router = useRouter()
   const [ticket, setTicket] = useState(initial)
   const [reply, setReply] = useState(initial.admin_reply ?? "")
+  const [editing, setEditing] = useState(!initial.admin_reply)
   const [resolving, setResolving] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [savedMsg, setSavedMsg] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState("")
+
+  const savedReply = ticket.admin_reply
 
   const handleResolve = async () => {
     setResolving(true)
@@ -46,18 +50,41 @@ export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket
   }
 
   const handleSaveReply = async () => {
+    if (!reply.trim()) return
     setSaving(true)
+    setError("")
     const res = await fetch("/api/admin/reply-ticket", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ticketId: ticket.id, reply }),
     })
     if (res.ok) {
-      setTicket((t) => ({ ...t, admin_reply: reply }))
-      setSavedMsg("Reply saved.")
-      setTimeout(() => setSavedMsg(""), 3000)
+      setTicket((t) => ({ ...t, admin_reply: reply.trim(), status: "pending" }))
+      setReply(reply.trim())
+      setEditing(false)
+    } else {
+      setError("Failed to save. Try again.")
     }
     setSaving(false)
+  }
+
+  const handleDelete = async () => {
+    if (!confirm("Delete this reply?")) return
+    setDeleting(true)
+    setError("")
+    const res = await fetch("/api/admin/reply-ticket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: ticket.id, reply: null }),
+    })
+    if (res.ok) {
+      setTicket((t) => ({ ...t, admin_reply: null }))
+      setReply("")
+      setEditing(true)
+    } else {
+      setError("Failed to delete. Try again.")
+    }
+    setDeleting(false)
   }
 
   return (
@@ -92,24 +119,63 @@ export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket
 
       {/* Reply */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Reply to user</p>
-        <textarea
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-          rows={5}
-          placeholder="Write your reply…"
-          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
-        />
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-green-600">{savedMsg}</span>
-          <button
-            onClick={handleSaveReply}
-            disabled={saving || !reply.trim()}
-            className="h-9 px-4 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
-          >
-            {saving ? "Saving…" : "Save Reply"}
-          </button>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Reply to user</p>
+          {savedReply && !editing && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Edit
+              </button>
+              <span className="text-gray-200">|</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Read-only view */}
+        {savedReply && !editing ? (
+          <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+            {savedReply}
+          </div>
+        ) : (
+          /* Edit / compose view */
+          <>
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              rows={5}
+              placeholder="Write your reply…"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+            <div className="flex items-center justify-end gap-2 mt-3">
+              {savedReply && (
+                <button
+                  onClick={() => { setReply(savedReply); setEditing(false) }}
+                  className="h-9 px-4 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={handleSaveReply}
+                disabled={saving || !reply.trim()}
+                className="h-9 px-4 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+              >
+                {saving ? "Saving…" : "Save Reply"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Actions */}
