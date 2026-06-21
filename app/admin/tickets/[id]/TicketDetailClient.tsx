@@ -38,14 +38,14 @@ export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket
 
   const savedReply = ticket.admin_reply
 
-  const handleResolve = async () => {
+  const setStatus = async (status: string) => {
     setResolving(true)
     const res = await fetch("/api/admin/resolve-ticket", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId: ticket.id }),
+      body: JSON.stringify({ ticketId: ticket.id, status }),
     })
-    if (res.ok) setTicket((t) => ({ ...t, status: "resolved" }))
+    if (res.ok) setTicket((t) => ({ ...t, status }))
     setResolving(false)
   }
 
@@ -180,13 +180,21 @@ export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket
 
       {/* Actions */}
       <div className="flex items-center gap-3">
-        {ticket.status !== "resolved" && (
+        {ticket.status !== "resolved" ? (
           <button
-            onClick={handleResolve}
+            onClick={() => setStatus("resolved")}
             disabled={resolving}
             className="h-10 px-5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
-            {resolving ? "Marking…" : "Mark as Resolved"}
+            {resolving ? "Updating…" : "Mark as Resolved"}
+          </button>
+        ) : (
+          <button
+            onClick={() => setStatus("open")}
+            disabled={resolving}
+            className="h-10 px-5 rounded-lg text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 transition-colors"
+          >
+            {resolving ? "Updating…" : "Reopen Ticket"}
           </button>
         )}
         <button
