@@ -1,6 +1,5 @@
 "use client"
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 
 type Ticket = {
   id: string
@@ -25,9 +24,12 @@ export default function TicketsClient({ tickets: initial }: { tickets: Ticket[] 
 
   const handleResolve = async (id: string) => {
     setResolving(id)
-    const supabase = createClient()
-    const { error } = await supabase.from("tickets").update({ status: "resolved" }).eq("id", id)
-    if (!error) {
+    const res = await fetch("/api/admin/resolve-ticket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: id }),
+    })
+    if (res.ok) {
       setTickets((prev) => prev.map((t) => t.id === id ? { ...t, status: "resolved" } : t))
     }
     setResolving(null)

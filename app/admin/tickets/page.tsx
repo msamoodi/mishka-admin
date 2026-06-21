@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import TicketsClient from "./TicketsClient"
 
 export default async function TicketsPage() {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: tickets } = await supabase
     .from("tickets")
