@@ -1,101 +1,78 @@
 "use client"
-import { useState } from "react"
+import Link from "next/link"
 
 type Ticket = {
   id: string
   subject: string
-  message: string
   status: string
   created_at: string
   user_id: string | null
   profiles: { first_name: string | null; last_name: string | null; email: string | null } | null
 }
 
-function statusBadge(status: string) {
-  if (status === "resolved")
-    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Resolved</span>
-  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Open</span>
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    open:     "bg-yellow-100 text-yellow-800",
+    pending:  "bg-blue-100 text-blue-800",
+    resolved: "bg-green-100 text-green-800",
+  }
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${map[status] ?? "bg-gray-100 text-gray-600"}`}>
+      {status}
+    </span>
+  )
 }
 
-export default function TicketsClient({ tickets: initial }: { tickets: Ticket[] }) {
-  const [tickets, setTickets] = useState(initial)
-  const [filter, setFilter] = useState<"all" | "open" | "resolved">("all")
-  const [resolving, setResolving] = useState<string | null>(null)
-
-  const handleResolve = async (id: string) => {
-    setResolving(id)
-    const res = await fetch("/api/admin/resolve-ticket", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId: id }),
-    })
-    if (res.ok) {
-      setTickets((prev) => prev.map((t) => t.id === id ? { ...t, status: "resolved" } : t))
-    }
-    setResolving(null)
-  }
-
-  const filtered = tickets.filter((t) => filter === "all" || t.status === filter)
-
-  const userName = (t: Ticket) => {
-    const p = t.profiles
-    if (!p) return t.user_id ? "User" : "Anonymous"
-    const name = [p.first_name, p.last_name].filter(Boolean).join(" ")
-    return name || p.email || "User"
-  }
-
+export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{tickets.filter((t) => t.status === "open").length} open · {tickets.filter((t) => t.status === "resolved").length} resolved</p>
-        </div>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {(["all", "open", "resolved"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${filter === f ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-900"}`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {tickets.filter((t) => t.status === "open").length} open ·{" "}
+          {tickets.filter((t) => t.status === "pending").length} pending ·{" "}
+          {tickets.filter((t) => t.status === "resolved").length} resolved
+        </p>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 text-sm">No {filter === "all" ? "" : filter} tickets.</div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {filtered.map((ticket) => (
-            <div key={ticket.id} className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {statusBadge(ticket.status)}
-                    <span className="text-xs text-gray-400">
-                      {new Date(ticket.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-sm">{ticket.subject}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{userName(ticket)}</p>
-                  <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{ticket.message}</p>
-                </div>
-                {ticket.status === "open" && (
-                  <button
-                    onClick={() => handleResolve(ticket.id)}
-                    disabled={resolving === ticket.id}
-                    className="flex-shrink-0 h-8 px-3 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Ticket Type</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Date</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center py-12 text-gray-400">No tickets yet.</td>
+              </tr>
+            )}
+            {tickets.map((ticket) => (
+              <tr key={ticket.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 font-medium text-gray-900">{ticket.subject}</td>
+                <td className="px-4 py-3 text-gray-500">{ticket.profiles?.email ?? "—"}</td>
+                <td className="px-4 py-3"><StatusBadge status={ticket.status} /></td>
+                <td className="px-4 py-3 text-gray-400 text-xs">
+                  {new Date(ticket.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <Link
+                    href={`/admin/tickets/${ticket.id}`}
+                    className="text-xs font-medium text-gray-900 underline underline-offset-2 hover:text-gray-600"
                   >
-                    {resolving === ticket.id ? "Resolving…" : "Mark Resolved"}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                    View
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

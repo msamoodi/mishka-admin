@@ -1,0 +1,135 @@
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+
+type Ticket = {
+  id: string
+  subject: string
+  message: string
+  status: string
+  created_at: string
+  admin_reply: string | null
+  email: string | null
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    open:     "bg-yellow-100 text-yellow-800",
+    pending:  "bg-blue-100 text-blue-800",
+    resolved: "bg-green-100 text-green-800",
+  }
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${map[status] ?? "bg-gray-100 text-gray-600"}`}>
+      {status}
+    </span>
+  )
+}
+
+export default function TicketDetailClient({ ticket: initial }: { ticket: Ticket }) {
+  const router = useRouter()
+  const [ticket, setTicket] = useState(initial)
+  const [reply, setReply] = useState(initial.admin_reply ?? "")
+  const [resolving, setResolving] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [savedMsg, setSavedMsg] = useState("")
+
+  const handleResolve = async () => {
+    setResolving(true)
+    const res = await fetch("/api/admin/resolve-ticket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: ticket.id }),
+    })
+    if (res.ok) setTicket((t) => ({ ...t, status: "resolved" }))
+    setResolving(false)
+  }
+
+  const handleSaveReply = async () => {
+    setSaving(true)
+    const res = await fetch("/api/admin/reply-ticket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: ticket.id, reply }),
+    })
+    if (res.ok) {
+      setTicket((t) => ({ ...t, admin_reply: reply }))
+      setSavedMsg("Reply saved.")
+      setTimeout(() => setSavedMsg(""), 3000)
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="p-8 max-w-2xl">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+        <Link href="/admin/tickets" className="hover:text-gray-700 transition-colors">Tickets</Link>
+        <span>/</span>
+        <span className="text-gray-600 font-medium truncate">{ticket.subject}</span>
+      </div>
+
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs text-gray-400 font-mono mb-1">ID: {ticket.id}</p>
+            <h1 className="text-xl font-bold text-gray-900">{ticket.subject}</h1>
+            {ticket.email && <p className="text-sm text-gray-500 mt-0.5">{ticket.email}</p>}
+          </div>
+          <StatusBadge status={ticket.status} />
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Ticket</p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{ticket.message}</p>
+        </div>
+
+        <div className="mt-4 text-xs text-gray-400">
+          {new Date(ticket.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </div>
+      </div>
+
+      {/* Reply */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Reply to user</p>
+        <textarea
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          rows={5}
+          placeholder="Write your reply…"
+          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
+        />
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-xs text-green-600">{savedMsg}</span>
+          <button
+            onClick={handleSaveReply}
+            disabled={saving || !reply.trim()}
+            className="h-9 px-4 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+          >
+            {saving ? "Saving…" : "Save Reply"}
+          </button>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        {ticket.status !== "resolved" && (
+          <button
+            onClick={handleResolve}
+            disabled={resolving}
+            className="h-10 px-5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            {resolving ? "Marking…" : "Mark as Resolved"}
+          </button>
+        )}
+        <button
+          onClick={() => router.push("/admin/tickets")}
+          className="h-10 px-5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Back to Tickets
+        </button>
+      </div>
+    </div>
+  )
+}
