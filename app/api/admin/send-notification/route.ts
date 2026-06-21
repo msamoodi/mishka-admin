@@ -79,5 +79,5 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  return NextResponse.json({ ok: true, sent: rows.length })
+  return NextResponse.json({ ok: true, sent: rows.length, id: notification.id })
 }
