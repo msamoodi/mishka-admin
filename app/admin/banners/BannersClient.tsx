@@ -1,6 +1,6 @@
 "use client"
-import { useState, useRef } from "react"
-import Image from "next/image"
+import { useState } from "react"
+import FolderImagePicker from "@/components/FolderImagePicker"
 
 type Banner = {
   id: string
@@ -12,43 +12,33 @@ type Banner = {
 
 export default function BannersClient({ banners: initial }: { banners: Banner[] }) {
   const [banners, setBanners] = useState(initial)
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [imageUrl, setImageUrl] = useState("")
   const [linkUrl, setLinkUrl] = useState("")
-  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setFile(f)
-    setPreview(f ? URL.createObjectURL(f) : null)
-  }
-
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file) return
-    setUploading(true)
+    if (!imageUrl.trim()) return
+    setSaving(true)
     setError("")
 
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("link_url", linkUrl)
-
-    const res = await fetch("/api/admin/upload-banner", { method: "POST", body: formData })
+    const res = await fetch("/api/admin/create-banner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url: imageUrl, link_url: linkUrl }),
+    })
     const json = await res.json()
 
     if (json.ok) {
       setBanners((prev) => [...prev, json.banner])
-      setFile(null)
-      setPreview(null)
+      setImageUrl("")
       setLinkUrl("")
-      if (fileInputRef.current) fileInputRef.current.value = ""
     } else {
-      setError(json.error ?? "Upload failed.")
+      setError(json.error ?? "Failed to add banner.")
     }
-    setUploading(false)
+    setSaving(false)
   }
 
   const handleDelete = async (id: string) => {
@@ -71,25 +61,17 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
       </div>
 
       <div className="grid grid-cols-[380px_1fr] gap-6 items-start">
-        {/* Upload form */}
-        <form onSubmit={handleUpload} className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
+        {/* Add form */}
+        <form onSubmit={handleSave} className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
           <h2 className="font-semibold text-gray-900 text-sm">Add Banner</h2>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Photo <span className="text-red-400">*</span></label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              required
-              className="text-sm text-gray-600"
+            <FolderImagePicker
+              value={imageUrl}
+              onChange={setImageUrl}
+              placeholder="/images/home/slider/slider-1.png"
             />
-            {preview && (
-              <div className="mt-1 rounded-lg overflow-hidden border border-gray-100" style={{ aspectRatio: "16/9" }}>
-                <Image src={preview} alt="Preview" width={400} height={225} className="w-full h-full object-cover" unoptimized />
-              </div>
-            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -109,10 +91,10 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
 
           <button
             type="submit"
-            disabled={uploading || !file}
+            disabled={saving || !imageUrl.trim()}
             className="h-10 rounded-lg text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
           >
-            {uploading ? "Uploading…" : "Add Banner"}
+            {saving ? "Adding…" : "Add Banner"}
           </button>
         </form>
 
@@ -125,11 +107,18 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
             <div className="flex flex-col gap-3">
               {banners.map((b) => (
                 <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
-                  <div className="rounded-lg overflow-hidden flex-shrink-0" style={{ width: 140, aspectRatio: "16/9" }}>
-                    <Image src={b.image_url} alt="" width={140} height={79} className="w-full h-full object-cover" unoptimized />
+                  <div className="rounded-lg overflow-hidden flex-shrink-0 border border-gray-100 bg-gray-50" style={{ width: 140, aspectRatio: "16/9" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/admin/image?path=${encodeURIComponent(b.image_url)}`}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate">{b.link_url || "No link set"}</p>
+                    <p className="text-xs text-gray-400 truncate">{b.image_url}</p>
+                    <p className="text-sm text-gray-900 truncate mt-0.5">{b.link_url || "No link set"}</p>
                     <p className="text-xs text-gray-400 mt-1">
                       Added {new Date(b.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
