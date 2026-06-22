@@ -10,6 +10,7 @@ const NAV = [
   { label: "Users",         href: "/admin/users",         icon: "👥" },
   { label: "Tickets",       href: "/admin/tickets",       icon: "🎫" },
   { label: "Notifications", href: "/admin/notifications", icon: "🔔" },
+  { label: "Banner Sliders", href: "/admin/banners",      icon: "🖼️" },
 ]
 
 export default function AdminSidebar({ name }: { name: string }) {
