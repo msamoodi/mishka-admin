@@ -1,0 +1,15 @@
+import { createServiceClient } from "@/lib/supabase/server"
+import CategoriesClient from "./CategoriesClient"
+
+export const dynamic = "force-dynamic"
+
+export default async function CategoriesPage() {
+  const supabase = createServiceClient()
+
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name, slug, description, display_order")
+    .order("display_order", { ascending: true })
+
+  return <CategoriesClient categories={categories ?? []} />
+}
