@@ -6,7 +6,7 @@ function slugify(name: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { name, description } = await req.json()
+  const { name, description, color } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 
   const supabase = createServiceClient()
@@ -26,9 +26,10 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       slug: slugify(name),
       description: description?.trim() || null,
+      color: color?.trim() || "#8557D4",
       display_order: nextOrder,
     })
-    .select("id, name, slug, description, display_order")
+    .select("id, name, slug, description, color, display_order")
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

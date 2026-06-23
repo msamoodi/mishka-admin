@@ -8,7 +8,7 @@ export default async function CategoriesPage() {
 
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name, slug, description, display_order")
+    .select("id, name, slug, description, color, display_order")
     .order("display_order", { ascending: true })
 
   return <CategoriesClient categories={categories ?? []} />

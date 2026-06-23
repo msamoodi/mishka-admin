@@ -6,19 +6,24 @@ type Category = {
   name: string
   slug: string
   description: string | null
+  color: string | null
   display_order: number
 }
+
+const DEFAULT_COLOR = "#8557D4"
 
 export default function CategoriesClient({ categories: initial }: { categories: Category[] }) {
   const [categories, setCategories] = useState(initial)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [color, setColor] = useState(DEFAULT_COLOR)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
+  const [editColor, setEditColor] = useState(DEFAULT_COLOR)
   const [updating, setUpdating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -31,7 +36,7 @@ export default function CategoriesClient({ categories: initial }: { categories: 
     const res = await fetch("/api/admin/create-category", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description, color }),
     })
     const json = await res.json()
 
@@ -39,6 +44,7 @@ export default function CategoriesClient({ categories: initial }: { categories: 
       setCategories((prev) => [...prev, json.category])
       setName("")
       setDescription("")
+      setColor(DEFAULT_COLOR)
     } else {
       setError(json.error ?? "Failed to add category.")
     }
@@ -49,12 +55,14 @@ export default function CategoriesClient({ categories: initial }: { categories: 
     setEditingId(c.id)
     setEditName(c.name)
     setEditDescription(c.description ?? "")
+    setEditColor(c.color ?? DEFAULT_COLOR)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setEditName("")
     setEditDescription("")
+    setEditColor(DEFAULT_COLOR)
   }
 
   const saveEdit = async (id: string) => {
@@ -63,10 +71,10 @@ export default function CategoriesClient({ categories: initial }: { categories: 
     const res = await fetch("/api/admin/update-category", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, name: editName, description: editDescription }),
+      body: JSON.stringify({ id, name: editName, description: editDescription, color: editColor }),
     })
     if (res.ok) {
-      setCategories((prev) => prev.map((c) => c.id === id ? { ...c, name: editName.trim(), description: editDescription.trim() || null } : c))
+      setCategories((prev) => prev.map((c) => c.id === id ? { ...c, name: editName.trim(), description: editDescription.trim() || null, color: editColor } : c))
       cancelEdit()
     }
     setUpdating(false)
@@ -119,6 +127,24 @@ export default function CategoriesClient({ categories: initial }: { categories: 
             />
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer"
+              />
+              <input
+                type="text"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 font-mono"
+              />
+            </div>
+          </div>
+
           {error && (
             <div className="text-sm rounded-lg px-3 py-2 bg-red-50 text-red-700">{error}</div>
           )}
@@ -155,6 +181,20 @@ export default function CategoriesClient({ categories: initial }: { categories: 
                         rows={2}
                         className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
                       />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                          className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                          className="flex-1 h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 font-mono"
+                        />
+                      </div>
                       <div className="flex items-center gap-2 justify-end">
                         <button
                           onClick={cancelEdit}
@@ -173,10 +213,16 @@ export default function CategoriesClient({ categories: initial }: { categories: 
                     </div>
                   ) : (
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">/{c.slug}</p>
-                        {c.description && <p className="text-sm text-gray-500 mt-1.5">{c.description}</p>}
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <span
+                          className="w-5 h-5 rounded-full border border-gray-200 flex-shrink-0 mt-0.5"
+                          style={{ background: c.color ?? DEFAULT_COLOR }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">/{c.slug}</p>
+                          {c.description && <p className="text-sm text-gray-500 mt-1.5">{c.description}</p>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
