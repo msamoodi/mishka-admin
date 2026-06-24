@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Suspense } from "react"
 import Image from "next/image"
+import { withBasePath } from "@/lib/basePath"
 
 function LoginForm() {
   const router = useRouter()
@@ -42,13 +43,13 @@ function LoginForm() {
       return
     }
 
-    router.push("/admin/courses")
+    router.push("/courses")
   }
 
   return (
     <div className="min-h-screen bg-white flex flex-col justify-end">
       <div className="flex justify-center relative z-10 mb-[-30px]">
-        <Image src="/signin.png" alt="Mishka" width={303} height={339} priority />
+        <Image src={withBasePath("/signin.png")} alt="Mishka" width={303} height={339} priority />
       </div>
 
       <div className="bg-gray-100 rounded-t-3xl px-6 pt-12 pb-[30vh]">

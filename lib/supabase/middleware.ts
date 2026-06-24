@@ -24,10 +24,12 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isLoginPage = request.nextUrl.pathname === "/login"
-  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin")
+  const isAdminRoute = !isLoginPage
 
   if (isAdminRoute && !user) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    const url = request.nextUrl.clone()
+    url.pathname = "/login"
+    return NextResponse.redirect(url)
   }
 
   if (isAdminRoute && user) {
@@ -38,7 +40,10 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (!profile?.is_admin) {
-      return NextResponse.redirect(new URL("/login?error=unauthorized", request.url))
+      const url = request.nextUrl.clone()
+      url.pathname = "/login"
+      url.searchParams.set("error", "unauthorized")
+      return NextResponse.redirect(url)
     }
   }
 
@@ -50,7 +55,9 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (profile?.is_admin) {
-      return NextResponse.redirect(new URL("/admin/courses", request.url))
+      const url = request.nextUrl.clone()
+      url.pathname = "/courses"
+      return NextResponse.redirect(url)
     }
   }
 

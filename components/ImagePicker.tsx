@@ -1,4 +1,5 @@
 "use client"
+import { withBasePath, BASE_PATH } from "@/lib/basePath"
 import { useState, useEffect, useRef } from "react"
 
 type Props = {
@@ -17,7 +18,7 @@ export default function ImagePicker({ value, onChange, placeholder = "/images/â€
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    fetch("/api/admin/list-images")
+    fetch(withBasePath("/api/admin/list-images"))
       .then(r => r.json())
       .then(d => setImages(d.images ?? []))
       .finally(() => setLoading(false))
@@ -60,7 +61,7 @@ export default function ImagePicker({ value, onChange, placeholder = "/images/â€
         <div className="w-full h-28 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/admin/image?path=${encodeURIComponent(value)}`}
+            src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(value)}`}
             alt=""
             className="w-full h-full object-cover"
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
@@ -99,7 +100,7 @@ export default function ImagePicker({ value, onChange, placeholder = "/images/â€
                     <div className="aspect-square bg-gray-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/api/admin/image?path=${encodeURIComponent(img)}`}
+                        src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(img)}`}
                         alt=""
                         className="w-full h-full object-cover"
                         onError={e => {

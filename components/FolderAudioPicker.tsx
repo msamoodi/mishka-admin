@@ -1,4 +1,5 @@
 "use client"
+import { withBasePath } from "@/lib/basePath"
 import { useState, useEffect, useRef } from "react"
 
 type Props = {
@@ -41,7 +42,7 @@ export default function FolderAudioPicker({ value, onChange, placeholder = "/aud
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    fetch("/api/admin/list-audio")
+    fetch(withBasePath("/api/admin/list-audio"))
       .then(r => r.json())
       .then(d => setAllFiles(d.audio ?? []))
       .finally(() => setLoading(false))
