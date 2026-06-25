@@ -28,6 +28,7 @@ type Lesson = {
   paragraph2?: string | null
   callout?: string | null
   audio?: string | null
+  is_published?: boolean | null
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -118,6 +119,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
   const [paragraph2,    setParagraph2]    = useState(initial?.paragraph2 ?? "")
   const [callout,       setCallout]       = useState(initial?.callout ?? "")
   const [audio,         setAudio]         = useState(initial?.audio ?? "")
+  const [isPublished,   setIsPublished]   = useState(initial?.is_published ?? true)
   const [questions, setQuestions] = useState<QuizQuestion[]>(
     initialQuizQuestions.length > 0
       ? initialQuizQuestions.map((q) => ({
@@ -170,6 +172,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
         callout,
         audio,
         order_index:     orderIndex,
+        is_published:    isPublished,
         questions:       lessonType === "quiz" ? questions : undefined,
       }),
     })
@@ -293,6 +296,16 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
           ))}
         </div>
       )}
+
+      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={isPublished}
+          onChange={(e) => setIsPublished(e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+        />
+        <span className="text-sm font-medium text-gray-700">Published (visible to learners)</span>
+      </label>
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={loading} className="h-9 px-5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
