@@ -13,6 +13,7 @@ type User = {
   rank: string | null
   completed_courses_count: number | null
   last_sign_in_at: string | null
+  last_seen_at: string | null
 }
 
 const RANK_COLOR: Record<string, string> = {
@@ -202,13 +203,14 @@ export default function UsersClient({ users }: { users: User[] }) {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Avatar</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Last Login</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Last Visit</th>
               <th className="px-4 py-3 w-16" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
                   {query ? `No users matching "${query}"` : "No users yet"}
                 </td>
               </tr>
@@ -264,6 +266,11 @@ export default function UsersClient({ users }: { users: User[] }) {
                   {/* Last Login */}
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {fmt(u.last_sign_in_at)}
+                  </td>
+
+                  {/* Last Visit */}
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {fmt(u.last_seen_at)}
                   </td>
 
                   {/* Action */}

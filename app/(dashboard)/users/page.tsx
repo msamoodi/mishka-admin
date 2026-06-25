@@ -9,7 +9,7 @@ export default async function UsersPage() {
   const [profilesResult, authResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, avatar_url, rank, completed_courses_count")
+      .select("id, first_name, last_name, email, avatar_url, rank, completed_courses_count, last_seen_at")
       .order("created_at", { ascending: false }),
     supabase.auth.admin.listUsers({ perPage: 1000 }),
   ])
@@ -18,7 +18,7 @@ export default async function UsersPage() {
     (authResult.data?.users ?? []).map((u: { id: string; last_sign_in_at?: string | null }) => [u.id, u.last_sign_in_at ?? null])
   )
 
-  type ProfileRow = { id: string; first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null; rank: string | null; completed_courses_count: number | null }
+  type ProfileRow = { id: string; first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null; rank: string | null; completed_courses_count: number | null; last_seen_at: string | null }
   const users = (profilesResult.data ?? [] as ProfileRow[]).map((p: ProfileRow) => ({
     ...p,
     last_sign_in_at: authMap.get(p.id) ?? null,
