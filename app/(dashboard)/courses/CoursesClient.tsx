@@ -68,12 +68,20 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
             {filtered.length}{query ? ` of ${courses.length}` : ""} courses
           </p>
         </div>
-        <Link
-          href="/courses/new"
-          className="h-9 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
-        >
-          + New Course
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/courses/import"
+            className="h-9 px-4 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2"
+          >
+            Bulk Import
+          </Link>
+          <Link
+            href="/courses/new"
+            className="h-9 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+          >
+            + New Course
+          </Link>
+        </div>
       </div>
 
       {/* Search + filters */}
