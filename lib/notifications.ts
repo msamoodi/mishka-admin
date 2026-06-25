@@ -16,9 +16,19 @@ export async function notifyUser(userId: string, headline: string, description?:
     .select("id")
     .single()
 
-  if (error || !notification) return
+  if (error || !notification) {
+    console.error("[notifyUser] failed to create notification:", error)
+    return
+  }
 
-  await supabase.from("user_notifications").insert({ user_id: userId, notification_id: notification.id })
+  const { error: deliveryError } = await supabase
+    .from("user_notifications")
+    .insert({ user_id: userId, notification_id: notification.id })
+
+  if (deliveryError) {
+    console.error("[notifyUser] failed to deliver to user", userId, ":", deliveryError)
+    return
+  }
 
   const { data: subs } = await supabase.from("push_subscriptions").select("subscription").eq("user_id", userId)
   const payload = JSON.stringify({ title: headline, body: description ?? "", url: ctaUrl ?? "/notifications" })
