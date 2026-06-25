@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import LessonForm from "../LessonForm"
@@ -16,7 +16,7 @@ export default async function NewLessonPage({
   const { type } = await searchParams
   const lessonType = type === "quiz" ? "quiz" : "content"
 
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data: course } = await supabase.from("courses").select("id, course_name").eq("id", id).single()
   if (!course) notFound()
 

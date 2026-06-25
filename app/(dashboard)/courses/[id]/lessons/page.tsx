@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import DeleteLessonButton from "./DeleteLessonButton"
@@ -12,7 +12,7 @@ const TYPE_BADGE: Record<string, string> = {
 
 export default async function LessonsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const [{ data: course }, { data: lessons }] = await Promise.all([
     supabase.from("courses").select("id, course_name, lesson_count, quiz_count").eq("id", id).single(),
@@ -64,7 +64,7 @@ export default async function LessonsPage({ params }: { params: Promise<{ id: st
                 </td>
               </tr>
             )}
-            {lessons?.map((l) => (
+            {lessons?.map((l: any) => (
               <tr key={l.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-gray-400 font-mono text-xs">{l.order_index}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{l.title}</td>

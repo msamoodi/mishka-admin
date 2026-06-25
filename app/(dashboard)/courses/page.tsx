@@ -1,16 +1,16 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import CoursesClient from "./CoursesClient"
 
 export const dynamic = "force-dynamic"
 
 export default async function CoursesPage() {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data: rawCourses } = await supabase
     .from("courses")
     .select("id, slug, course_name, category, level, is_published, display_order, lessons(count), quiz_questions(count)")
     .order("display_order", { ascending: true })
 
-  const courses = (rawCourses ?? []).map(c => ({
+  const courses = (rawCourses ?? []).map((c: any) => ({
     id:            c.id,
     slug:          c.slug,
     course_name:   c.course_name,

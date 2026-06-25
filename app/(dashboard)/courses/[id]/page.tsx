@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import CourseEditClient from "./CourseEditClient"
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 
 export default async function EditCoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const [{ data: course }, { data: lessons }, { data: quizQuestions }, { data: objectives }] = await Promise.all([
     supabase.from("courses").select("*").eq("id", id).single(),
