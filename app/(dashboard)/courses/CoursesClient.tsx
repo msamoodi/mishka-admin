@@ -11,6 +11,7 @@ type Course = {
   level: string
   is_published: boolean
   display_order: number
+  course_type: string
   lesson_count: number
   quiz_count: number
 }
@@ -40,6 +41,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
   const [category, setCategory] = useState("")
   const [level, setLevel] = useState("")
   const [status, setStatus] = useState("")
+  const [courseType, setCourseType] = useState("")
   const [pageSize, setPageSize] = useState(20)
   const [page, setPage] = useState(1)
 
@@ -52,6 +54,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
     if (level && c.level !== level) return false
     if (status === "published" && !c.is_published) return false
     if (status === "draft" && c.is_published) return false
+    if (courseType && c.course_type !== courseType) return false
     return true
   })
 
@@ -133,9 +136,19 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
           <option value="draft">Draft</option>
         </select>
 
-        {(category || level || status) && (
+        <select
+          value={courseType}
+          onChange={e => { setCourseType(e.target.value); setPage(1) }}
+          className={`h-10 px-3 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white transition-colors ${courseType ? "border-gray-900 text-gray-900 font-medium" : "border-gray-300 text-gray-500"}`}
+        >
+          <option value="">All Types</option>
+          <option value="standard">Standard</option>
+          <option value="video">Video</option>
+        </select>
+
+        {(category || level || status || courseType) && (
           <button
-            onClick={() => { setCategory(""); setLevel(""); setStatus(""); setPage(1) }}
+            onClick={() => { setCategory(""); setLevel(""); setStatus(""); setCourseType(""); setPage(1) }}
             className="h-10 px-3 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Clear filters
@@ -148,6 +161,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-4 py-3 font-medium text-gray-500">Course</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Category</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Level</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Lessons</th>
@@ -158,7 +172,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
                   {query ? `No courses matching "${query}"` : "No courses yet. Create your first one."}
                 </td>
               </tr>
@@ -168,6 +182,13 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-900">{c.course_name}</p>
                   <p className="text-xs text-gray-400">{c.slug}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    c.course_type === "video" ? "bg-pink-50 text-pink-700" : "bg-gray-100 text-gray-600"
+                  }`}>
+                    {c.course_type === "video" ? "Video" : "Standard"}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-gray-600 capitalize">{c.category.replace(/-/g, " ")}</td>
                 <td className="px-4 py-3">

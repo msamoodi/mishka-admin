@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       lessonId, courseId, lessonType, title,
-      paragraph1, image, paragraph2, callout, audio, cover_image_url,
+      paragraph1, image, paragraph2, callout, audio, cover_image_url, video_url,
       order_index, is_published, questions,
     } = body
 
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       callout:      lessonType === "content" ? (callout?.trim()    || null) : null,
       cover_image_url: lessonType === "content" ? (cover_image_url?.trim() || null) : null,
       audio:        audio?.trim() || null,
+      video_url:    lessonType === "video" ? (video_url?.trim() || null) : null,
     }
 
     let savedLessonId = lessonId

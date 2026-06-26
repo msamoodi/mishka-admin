@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic"
 const TYPE_BADGE: Record<string, string> = {
   content: "bg-blue-50 text-blue-700",
   quiz:    "bg-amber-50 text-amber-700",
+  video:   "bg-pink-50 text-pink-700",
 }
 
 export default async function LessonsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +44,12 @@ export default async function LessonsPage({ params }: { params: Promise<{ id: st
           className="h-9 px-4 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-2"
         >
           + Add Quiz
+        </Link>
+        <Link
+          href={`/courses/${id}/lessons/new?type=video`}
+          className="h-9 px-4 bg-pink-500 text-white text-sm font-medium rounded-lg hover:bg-pink-600 transition-colors flex items-center gap-2"
+        >
+          + Add Video
         </Link>
       </div>
 

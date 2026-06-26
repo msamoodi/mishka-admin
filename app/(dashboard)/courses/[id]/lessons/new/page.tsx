@@ -14,7 +14,7 @@ export default async function NewLessonPage({
 }) {
   const { id } = await params
   const { type } = await searchParams
-  const lessonType = type === "quiz" ? "quiz" : "content"
+  const lessonType = type === "quiz" ? "quiz" : type === "video" ? "video" : "content"
 
   const supabase = createServiceClient()
   const { data: course } = await supabase.from("courses").select("id, course_name").eq("id", id).single()
@@ -35,7 +35,7 @@ export default async function NewLessonPage({
           ← Back to {course.course_name}
         </Link>
         <h1 className="text-xl font-bold text-gray-900">
-          {lessonType === "quiz" ? "New Quiz" : "New Lesson"}
+          {lessonType === "quiz" ? "New Quiz" : lessonType === "video" ? "New Video" : "New Lesson"}
         </h1>
       </div>
       <LessonForm courseId={id} lessonType={lessonType} defaultOrderIndex={count ?? 0} />

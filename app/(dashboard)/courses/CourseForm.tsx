@@ -17,6 +17,7 @@ type CourseFormData = {
   tags: string
   thumbnail_url: string
   is_published: boolean
+  course_type: string
 }
 
 export type CourseFormHandle = {
@@ -60,6 +61,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
       tags:          (initial as any)?.tags ? (initial as any).tags.join(", ") : "",
       thumbnail_url: initial?.thumbnail_url ?? "",
       is_published:  initial?.is_published  ?? false,
+      course_type:   initial?.course_type   ?? "standard",
     })
 
     const set = (k: keyof CourseFormData, v: unknown) =>
@@ -95,6 +97,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
           tags:          form.tags.split(",").map(t => t.trim()).filter(Boolean),
           thumbnail_url: form.thumbnail_url.trim() || null,
           is_published:  form.is_published,
+          course_type:   form.course_type,
         }
 
         const res  = await fetch(withBasePath("/api/admin/save-course"), {
@@ -150,6 +153,13 @@ const CourseForm = forwardRef<CourseFormHandle, {
             />
           </Field>
         </div>
+
+        <Field label="Course Type" required>
+          <select required value={form.course_type} onChange={e => set("course_type", e.target.value)} className={INPUT}>
+            <option value="standard">Standard (lessons &amp; quizzes)</option>
+            <option value="video">Video</option>
+          </select>
+        </Field>
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Category" required>

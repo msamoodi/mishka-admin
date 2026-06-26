@@ -29,7 +29,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
           ← Back to {course.course_name}
         </Link>
         <h1 className="text-xl font-bold text-gray-900">
-          {lesson.lesson_type === "quiz" ? "Edit Quiz" : "Edit Lesson"}
+          {lesson.lesson_type === "quiz" ? "Edit Quiz" : lesson.lesson_type === "video" ? "Edit Video" : "Edit Lesson"}
         </h1>
       </div>
       <LessonForm

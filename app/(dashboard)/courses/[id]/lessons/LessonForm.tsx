@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
 import FolderImagePicker from "@/components/FolderImagePicker"
 import FolderAudioPicker from "@/components/FolderAudioPicker"
+import FolderVideoPicker from "@/components/FolderVideoPicker"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type Lesson = {
   paragraph2?: string | null
   callout?: string | null
   audio?: string | null
+  video_url?: string | null
   is_published?: boolean | null
 }
 
@@ -119,6 +121,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
   const [paragraph2,    setParagraph2]    = useState(initial?.paragraph2 ?? "")
   const [callout,       setCallout]       = useState(initial?.callout ?? "")
   const [audio,         setAudio]         = useState(initial?.audio ?? "")
+  const [videoUrl,      setVideoUrl]      = useState(initial?.video_url ?? "")
   const [isPublished,   setIsPublished]   = useState(initial?.is_published ?? true)
   const [questions, setQuestions] = useState<QuizQuestion[]>(
     initialQuizQuestions.length > 0
@@ -155,6 +158,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
     e.preventDefault()
     if (!title.trim()) { setToast({ message: "Title is required.", type: "error" }); return }
     if (lessonType === "quiz" && questions.length === 0) { setToast({ message: "Add at least one question.", type: "error" }); return }
+    if (lessonType === "video" && !videoUrl.trim()) { setToast({ message: "Choose a video file.", type: "error" }); return }
     setLoading(true)
 
     const res  = await fetch(withBasePath("/api/admin/save-lesson"), {
@@ -171,6 +175,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
         paragraph2,
         callout,
         audio,
+        video_url:       videoUrl,
         order_index:     orderIndex,
         is_published:    isPublished,
         questions:       lessonType === "quiz" ? questions : undefined,
@@ -202,7 +207,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="h-10 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder={lessonType === "quiz" ? "Quiz title…" : "Lesson title…"}
+              placeholder={lessonType === "quiz" ? "Quiz title…" : lessonType === "video" ? "Video title…" : "Lesson title…"}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -215,11 +220,21 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
           </div>
         </div>
         <div>
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${lessonType === "quiz" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
-            {lessonType === "quiz" ? "Quiz" : "Content Lesson"}
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+            lessonType === "quiz" ? "bg-amber-50 text-amber-700" : lessonType === "video" ? "bg-pink-50 text-pink-700" : "bg-blue-50 text-blue-700"
+          }`}>
+            {lessonType === "quiz" ? "Quiz" : lessonType === "video" ? "Video" : "Content Lesson"}
           </span>
         </div>
       </div>
+
+      {/* Video field */}
+      {lessonType === "video" && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Video</h2>
+          <FolderVideoPicker value={videoUrl} onChange={setVideoUrl} placeholder="/videos/lessons/intro.mp4" />
+        </div>
+      )}
 
       {/* Content fields — these map 1:1 to the lessons table columns the app reads */}
       {lessonType === "content" && (
@@ -271,11 +286,13 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
         </div>
       )}
 
-      {/* Audio — available for both content and quiz lessons */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1">Audio narration</h2>
-        <FolderAudioPicker value={audio} onChange={setAudio} placeholder="/audio/lessons/narration.mp3" />
-      </div>
+      {/* Audio — available for both content and quiz lessons (videos carry their own audio track) */}
+      {lessonType !== "video" && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Audio narration</h2>
+          <FolderAudioPicker value={audio} onChange={setAudio} placeholder="/audio/lessons/narration.mp3" />
+        </div>
+      )}
 
       {/* Quiz questions */}
       {lessonType === "quiz" && (
@@ -309,7 +326,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={loading} className="h-9 px-5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
-          {loading ? "Saving…" : isEdit ? "Save Changes" : lessonType === "quiz" ? "Create Quiz" : "Create Lesson"}
+          {loading ? "Saving…" : isEdit ? "Save Changes" : lessonType === "quiz" ? "Create Quiz" : lessonType === "video" ? "Create Video" : "Create Lesson"}
         </button>
         <button type="button" onClick={() => router.push(`/courses/${courseId}/lessons`)} className="h-9 px-4 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
           Cancel

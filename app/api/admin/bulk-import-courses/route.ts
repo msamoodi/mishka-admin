@@ -9,7 +9,7 @@ type ImportQuestion = {
 }
 
 type ImportLesson = {
-  lesson_type: "content" | "quiz"
+  lesson_type: "content" | "quiz" | "video"
   title: string
   is_published?: boolean
   paragraph1?: string
@@ -17,6 +17,7 @@ type ImportLesson = {
   paragraph2?: string
   callout?: string
   audio?: string
+  video_url?: string
   questions?: ImportQuestion[]
 }
 
@@ -31,6 +32,7 @@ type ImportCourse = {
   tags?: string[]
   thumbnail_url?: string
   is_published?: boolean
+  course_type?: "standard" | "video"
   objectives?: string[]
   lessons?: ImportLesson[]
 }
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
         tags:          course.tags ?? [],
         thumbnail_url: course.thumbnail_url?.trim() || null,
         is_published:  course.is_published ?? false,
+        course_type:   course.course_type ?? "standard",
       }
 
       // Upsert by slug
@@ -118,6 +121,7 @@ export async function POST(request: NextRequest) {
           paragraph2:   lesson.lesson_type === "content" ? (lesson.paragraph2?.trim() || null) : null,
           callout:      lesson.lesson_type === "content" ? (lesson.callout?.trim() || null) : null,
           audio:        lesson.audio?.trim() || null,
+          video_url:    lesson.lesson_type === "video" ? (lesson.video_url?.trim() || null) : null,
         }
 
         const { data: lessonRow, error: lessonErr } = await supabase.from("lessons").insert(lessonPayload).select("id").single()
