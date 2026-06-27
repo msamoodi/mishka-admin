@@ -1,5 +1,5 @@
 "use client"
-import { withBasePath, BASE_PATH } from "@/lib/basePath"
+import { withBasePath, resolveAppUrl } from "@/lib/basePath"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
@@ -64,7 +64,7 @@ function AvatarImg({ url, size = 80, name = "?" }: { url: string | null | undefi
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(url)}`}
+        src={resolveAppUrl(url)}
         alt="avatar"
         className="rounded-full object-cover"
         style={{ width: size, height: size }}
@@ -271,7 +271,7 @@ export default function UserDetailClient({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(src)}`}
+                      src={resolveAppUrl(src)}
                       alt="avatar option"
                       className="w-14 h-14 rounded-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).style.display = "none" }}

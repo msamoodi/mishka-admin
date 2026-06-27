@@ -1,5 +1,5 @@
 "use client"
-import { withBasePath, BASE_PATH } from "@/lib/basePath"
+import { withBasePath, resolveAppUrl } from "@/lib/basePath"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -34,7 +34,7 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(url)}`}
+        src={resolveAppUrl(url)}
         alt={name}
         className="w-9 h-9 rounded-full object-cover bg-gray-100"
         onError={e => {

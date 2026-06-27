@@ -1,5 +1,5 @@
 "use client"
-import { withBasePath, BASE_PATH } from "@/lib/basePath"
+import { withBasePath, resolveAppUrl } from "@/lib/basePath"
 import { useState } from "react"
 import ImageUploader from "@/components/ImageUploader"
 
@@ -111,7 +111,7 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
                   <div className="rounded-lg overflow-hidden flex-shrink-0 border border-gray-100 bg-gray-50" style={{ width: 140, aspectRatio: "16/9" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`${BASE_PATH}/api/admin/image?path=${encodeURIComponent(b.image_url)}`}
+                      src={resolveAppUrl(b.image_url)}
                       alt=""
                       className="w-full h-full object-cover"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
