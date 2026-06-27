@@ -9,11 +9,11 @@ export type MediaKind = "images" | "audio" | "videos"
 // require exposing storage write access via RLS), then uploads the file
 // directly from the browser to Supabase Storage — bypassing this app's own
 // serverless function body-size limit entirely.
-export async function uploadMedia(file: File, kind: MediaKind): Promise<string> {
+export async function uploadMedia(file: File, kind: MediaKind, folder?: string): Promise<string> {
   const res = await fetch(withBasePath("/api/admin/get-upload-url"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, filename: file.name }),
+    body: JSON.stringify({ kind, filename: file.name, folder }),
   })
   const json = await res.json()
   if (!res.ok || json.error) throw new Error(json.error ?? "Failed to get upload URL")

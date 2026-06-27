@@ -86,6 +86,8 @@ export default function CourseEditClient({
         <ContentManager
           ref={contentRef}
           courseId={courseId}
+          courseCategory={course.category as string}
+          courseSlug={course.slug as string}
           initialLessons={lessons}
           initialQuizQuestions={quizQuestions}
           onActiveChange={handleActiveChange}

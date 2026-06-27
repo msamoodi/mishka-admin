@@ -86,11 +86,14 @@ const ContentManager = forwardRef<
   ContentManagerHandle,
   {
     courseId: string
+    courseCategory: string
+    courseSlug: string
     initialLessons: Lesson[]
     initialQuizQuestions: QuizQuestion[]
     onActiveChange?: (info: { active: boolean; canDelete: boolean }) => void
   }
->(function ContentManager({ courseId, initialLessons, initialQuizQuestions, onActiveChange }, ref) {
+>(function ContentManager({ courseId, courseCategory, courseSlug, initialLessons, initialQuizQuestions, onActiveChange }, ref) {
+  const mediaFolder = `courses/${courseCategory}/${courseSlug}`
 
   const [lessons,   setLessons]   = useState<Lesson[]>(initialLessons)
   const [drafts,    setDrafts]    = useState<Record<string, LessonDraft>>(() =>
@@ -348,7 +351,7 @@ const ContentManager = forwardRef<
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Image</label>
-                <ImageUploader value={cur.imageUrl} onChange={v => updateDraft("imageUrl", v)} placeholder="/images/courses/…" />
+                <ImageUploader value={cur.imageUrl} onChange={v => updateDraft("imageUrl", v)} placeholder="/images/courses/…" folder={mediaFolder} />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -391,7 +394,7 @@ const ContentManager = forwardRef<
           {/* Audio — shared by both content and quiz */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Audio (MP3)</label>
-            <AudioUploader value={cur.audioUrl} onChange={v => updateDraft("audioUrl", v)} placeholder="/audio/…" />
+            <AudioUploader value={cur.audioUrl} onChange={v => updateDraft("audioUrl", v)} placeholder="/audio/…" folder={mediaFolder} />
           </div>
 
           {/* Published + close */}

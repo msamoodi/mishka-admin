@@ -6,9 +6,11 @@ type Props = {
   value: string
   onChange: (url: string) => void
   placeholder?: string
+  /** Subfolder within images/, e.g. "courses/product-design/advanced-ux-strategy" */
+  folder?: string
 }
 
-export default function ImageUploader({ value, onChange, placeholder = "https://… or paste a path" }: Props) {
+export default function ImageUploader({ value, onChange, placeholder = "https://… or paste a path", folder }: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
@@ -18,7 +20,7 @@ export default function ImageUploader({ value, onChange, placeholder = "https://
     setError("")
     setUploading(true)
     try {
-      const url = await uploadMedia(file, "images")
+      const url = await uploadMedia(file, "images", folder)
       onChange(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed")

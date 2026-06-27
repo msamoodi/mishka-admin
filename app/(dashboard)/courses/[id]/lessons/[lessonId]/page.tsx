@@ -10,7 +10,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
   const supabase = createServiceClient()
 
   const [{ data: course }, { data: lesson }, { data: quizQuestions }] = await Promise.all([
-    supabase.from("courses").select("id, course_name").eq("id", id).single(),
+    supabase.from("courses").select("id, course_name, category, slug").eq("id", id).single(),
     supabase.from("lessons").select("*").eq("id", lessonId).single(),
     supabase.from("quiz_questions").select("*").eq("lesson_id", lessonId).order("order_index"),
   ])
@@ -38,6 +38,8 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
         defaultOrderIndex={lesson.order_index}
         initial={lesson}
         initialQuizQuestions={quizQuestions ?? []}
+        courseCategory={course.category}
+        courseSlug={course.slug}
       />
     </div>
   )

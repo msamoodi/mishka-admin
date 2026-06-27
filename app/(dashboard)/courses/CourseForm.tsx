@@ -222,6 +222,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
             value={form.thumbnail_url}
             onChange={v => set("thumbnail_url", v)}
             placeholder="/images/courses/product-design/thumbnail.png"
+            folder={`courses/${form.category}/${form.slug || "untitled"}`}
           />
         </Field>
 
