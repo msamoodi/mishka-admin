@@ -1,7 +1,7 @@
 "use client"
 import { withBasePath, BASE_PATH } from "@/lib/basePath"
 import { useState } from "react"
-import FolderImagePicker from "@/components/FolderImagePicker"
+import ImageUploader from "@/components/ImageUploader"
 
 type Banner = {
   id: string
@@ -68,7 +68,7 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Photo <span className="text-red-400">*</span></label>
-            <FolderImagePicker
+            <ImageUploader
               value={imageUrl}
               onChange={setImageUrl}
               placeholder="/images/home/slider/slider-1.png"

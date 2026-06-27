@@ -1,8 +1,8 @@
 "use client"
 import { withBasePath } from "@/lib/basePath"
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from "react"
-import FolderImagePicker from "@/components/FolderImagePicker"
-import FolderAudioPicker from "@/components/FolderAudioPicker"
+import ImageUploader from "@/components/ImageUploader"
+import AudioUploader from "@/components/AudioUploader"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -348,7 +348,7 @@ const ContentManager = forwardRef<
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Image</label>
-                <FolderImagePicker value={cur.imageUrl} onChange={v => updateDraft("imageUrl", v)} placeholder="/images/courses/…" />
+                <ImageUploader value={cur.imageUrl} onChange={v => updateDraft("imageUrl", v)} placeholder="/images/courses/…" />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -391,7 +391,7 @@ const ContentManager = forwardRef<
           {/* Audio — shared by both content and quiz */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Audio (MP3)</label>
-            <FolderAudioPicker value={cur.audioUrl} onChange={v => updateDraft("audioUrl", v)} placeholder="/audio/…" />
+            <AudioUploader value={cur.audioUrl} onChange={v => updateDraft("audioUrl", v)} placeholder="/audio/…" />
           </div>
 
           {/* Published + close */}

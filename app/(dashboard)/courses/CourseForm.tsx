@@ -1,7 +1,7 @@
 "use client"
 import { withBasePath } from "@/lib/basePath"
 import { useState, forwardRef, useImperativeHandle } from "react"
-import FolderImagePicker from "@/components/FolderImagePicker"
+import ImageUploader from "@/components/ImageUploader"
 
 type ObjectiveItem = { key: number; objective: string }
 
@@ -218,7 +218,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
         </Field>
 
         <Field label="Thumbnail">
-          <FolderImagePicker
+          <ImageUploader
             value={form.thumbnail_url}
             onChange={v => set("thumbnail_url", v)}
             placeholder="/images/courses/product-design/thumbnail.png"

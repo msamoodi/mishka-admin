@@ -3,9 +3,9 @@ import { withBasePath } from "@/lib/basePath"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
-import FolderImagePicker from "@/components/FolderImagePicker"
-import FolderAudioPicker from "@/components/FolderAudioPicker"
-import FolderVideoPicker from "@/components/FolderVideoPicker"
+import ImageUploader from "@/components/ImageUploader"
+import AudioUploader from "@/components/AudioUploader"
+import VideoUploader from "@/components/VideoUploader"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,7 +232,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
       {lessonType === "video" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
           <h2 className="text-sm font-semibold text-gray-700 mb-1">Video</h2>
-          <FolderVideoPicker value={videoUrl} onChange={setVideoUrl} placeholder="/videos/lessons/intro.mp4" />
+          <VideoUploader value={videoUrl} onChange={setVideoUrl} placeholder="/videos/lessons/intro.mp4" />
         </div>
       )}
 
@@ -243,7 +243,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-600">Cover Image</label>
-            <FolderImagePicker value={coverImageUrl} onChange={setCoverImageUrl} placeholder="/images/lessons/cover.png" />
+            <ImageUploader value={coverImageUrl} onChange={setCoverImageUrl} placeholder="/images/lessons/cover.png" />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -259,7 +259,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-600">Image</label>
-            <FolderImagePicker value={image} onChange={setImage} placeholder="/images/lessons/diagram.png" />
+            <ImageUploader value={image} onChange={setImage} placeholder="/images/lessons/diagram.png" />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -290,7 +290,7 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
       {lessonType !== "video" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
           <h2 className="text-sm font-semibold text-gray-700 mb-1">Audio narration</h2>
-          <FolderAudioPicker value={audio} onChange={setAudio} placeholder="/audio/lessons/narration.mp3" />
+          <AudioUploader value={audio} onChange={setAudio} placeholder="/audio/lessons/narration.mp3" />
         </div>
       )}
 
