@@ -236,7 +236,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
               value={form.video_url}
               onChange={v => set("video_url", v)}
               placeholder="/videos/courses/course-name/intro.mp4"
-              folder={`videos/courses/${form.slug || "untitled"}`}
+              folder={`courses/${form.slug || "untitled"}`}
             />
           </Field>
         )}
