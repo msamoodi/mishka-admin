@@ -2,6 +2,7 @@
 import { withBasePath } from "@/lib/basePath"
 import { useState, forwardRef, useImperativeHandle } from "react"
 import ImageUploader from "@/components/ImageUploader"
+import VideoUploader from "@/components/VideoUploader"
 
 type ObjectiveItem = { key: number; objective: string }
 
@@ -16,6 +17,7 @@ type CourseFormData = {
   display_order: number
   tags: string
   thumbnail_url: string
+  video_url: string
   is_published: boolean
   course_type: string
 }
@@ -60,6 +62,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
       display_order: initial?.display_order ?? 0,
       tags:          (initial as any)?.tags ? (initial as any).tags.join(", ") : "",
       thumbnail_url: initial?.thumbnail_url ?? "",
+      video_url:     (initial as any)?.video_url ?? "",
       is_published:  initial?.is_published  ?? false,
       course_type:   initial?.course_type   ?? "standard",
     })
@@ -96,6 +99,7 @@ const CourseForm = forwardRef<CourseFormHandle, {
           display_order: form.display_order,
           tags:          form.tags.split(",").map(t => t.trim()).filter(Boolean),
           thumbnail_url: form.thumbnail_url.trim() || null,
+          video_url:     form.video_url.trim() || null,
           is_published:  form.is_published,
           course_type:   form.course_type,
         }
@@ -225,6 +229,17 @@ const CourseForm = forwardRef<CourseFormHandle, {
             folder={`courses/${form.category}/${form.slug || "untitled"}`}
           />
         </Field>
+
+        {form.course_type === "video" && (
+          <Field label="Course Video">
+            <VideoUploader
+              value={form.video_url}
+              onChange={v => set("video_url", v)}
+              placeholder="/videos/courses/course-name/intro.mp4"
+              folder={`videos/courses/${form.slug || "untitled"}`}
+            />
+          </Field>
+        )}
 
         {/* Objectives list */}
         <div className="flex flex-col gap-2">
