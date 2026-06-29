@@ -37,6 +37,7 @@ type Lesson = {
 
 type Props = {
   courseId: string
+  courseType: string
   lessonType: string
   defaultOrderIndex: number
   initial?: Lesson
@@ -111,7 +112,8 @@ function QuestionEditor({
 
 // ─── Main form ────────────────────────────────────────────────────────────────
 
-export default function LessonForm({ courseId, lessonType, defaultOrderIndex, initial, initialQuizQuestions = [], courseCategory, courseSlug }: Props) {
+export default function LessonForm({ courseId, courseType, lessonType, defaultOrderIndex, initial, initialQuizQuestions = [], courseCategory, courseSlug }: Props) {
+  const isVideoCourse = courseType === "video"
   const mediaFolder = `courses/${courseCategory}/${courseSlug}`
   const router = useRouter()
   const isEdit = !!initial?.id
@@ -231,8 +233,8 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
         </div>
       </div>
 
-      {/* Video field */}
-      {lessonType === "video" && (
+      {/* Video field — for explicit video-type lessons on standard courses; video courses always show this above */}
+      {!isVideoCourse && lessonType === "video" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
           <h2 className="text-sm font-semibold text-gray-700 mb-1">Video</h2>
           <VideoUploader value={videoUrl} onChange={setVideoUrl} placeholder="/videos/lessons/intro.mp4" folder={mediaFolder} />
@@ -289,8 +291,13 @@ export default function LessonForm({ courseId, lessonType, defaultOrderIndex, in
         </div>
       )}
 
-      {/* Audio — available for both content and quiz lessons (videos carry their own audio track) */}
-      {lessonType !== "video" && (
+      {/* Video courses: all lesson/quiz types get video upload; standard courses: audio for content/quiz, video only for video-type lessons */}
+      {isVideoCourse ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Video</h2>
+          <VideoUploader value={videoUrl} onChange={setVideoUrl} placeholder="/videos/lessons/intro.mp4" folder={mediaFolder} />
+        </div>
+      ) : lessonType !== "video" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-1.5">
           <h2 className="text-sm font-semibold text-gray-700 mb-1">Audio narration</h2>
           <AudioUploader value={audio} onChange={setAudio} placeholder="/audio/lessons/narration.mp3" folder={mediaFolder} />

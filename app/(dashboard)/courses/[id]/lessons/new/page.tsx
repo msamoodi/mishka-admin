@@ -17,7 +17,7 @@ export default async function NewLessonPage({
   const lessonType = type === "quiz" ? "quiz" : type === "video" ? "video" : "content"
 
   const supabase = createServiceClient()
-  const { data: course } = await supabase.from("courses").select("id, course_name, category, slug").eq("id", id).single()
+  const { data: course } = await supabase.from("courses").select("id, course_name, category, slug, course_type").eq("id", id).single()
   if (!course) notFound()
 
   // Next order_index
@@ -38,7 +38,7 @@ export default async function NewLessonPage({
           {lessonType === "quiz" ? "New Quiz" : lessonType === "video" ? "New Video" : "New Lesson"}
         </h1>
       </div>
-      <LessonForm courseId={id} lessonType={lessonType} defaultOrderIndex={count ?? 0} courseCategory={course.category} courseSlug={course.slug} />
+      <LessonForm courseId={id} courseType={course.course_type ?? "standard"} lessonType={lessonType} defaultOrderIndex={count ?? 0} courseCategory={course.category} courseSlug={course.slug} />
     </div>
   )
 }
