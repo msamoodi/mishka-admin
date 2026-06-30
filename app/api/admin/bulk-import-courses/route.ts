@@ -78,19 +78,14 @@ export async function POST(request: NextRequest) {
         course_type:   course.course_type ?? "standard",
       }
 
-      // Upsert by slug
-      const { data: existing } = await supabase.from("courses").select("id").eq("slug", slug).maybeSingle()
-
-      let courseId: string
-      if (existing) {
-        courseId = existing.id
-        const { error } = await supabase.from("courses").update(coursePayload).eq("id", courseId)
-        if (error) throw new Error(error.message)
-      } else {
-        const { data, error } = await supabase.from("courses").insert(coursePayload).select("id").single()
-        if (error || !data) throw new Error(error?.message ?? "Insert failed")
-        courseId = data.id
-      }
+      // Upsert by slug — single query replaces the previous check + conditional insert/update
+      const { data: upserted, error: upsertErr } = await supabase
+        .from("courses")
+        .upsert(coursePayload, { onConflict: "slug" })
+        .select("id")
+        .single()
+      if (upsertErr || !upserted) throw new Error(upsertErr?.message ?? "Upsert failed")
+      const courseId = upserted.id
 
       // Replace objectives
       await supabase.from("course_objectives").delete().eq("course_id", courseId)

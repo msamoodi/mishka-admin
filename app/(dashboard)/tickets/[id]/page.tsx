@@ -6,23 +6,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const { id } = await params
   const supabase = createServiceClient()
 
+  // Single query with embedded profile join — eliminates the sequential 2-query waterfall
   const { data: ticket } = await supabase
     .from("tickets")
-    .select("id, subject, message, status, created_at, user_id, admin_reply")
+    .select("id, subject, message, status, created_at, user_id, admin_reply, profiles(email)")
     .eq("id", id)
     .single()
 
   if (!ticket) notFound()
 
-  let email: string | null = null
-  if (ticket.user_id) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", ticket.user_id)
-      .single()
-    email = profile?.email ?? null
-  }
+  type TicketWithProfile = typeof ticket & { profiles: { email: string } | null }
+  const t = ticket as unknown as TicketWithProfile
+  const email = t.profiles?.email ?? null
 
   return <TicketDetailClient ticket={{ ...ticket, email }} />
 }

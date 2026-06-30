@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import CategoriesClient from "./CategoriesClient"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 300
 
 export default async function CategoriesPage() {
   const supabase = createServiceClient()

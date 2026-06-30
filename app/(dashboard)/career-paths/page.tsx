@@ -3,7 +3,7 @@ import Link from "next/link"
 import DeleteCareerPathButton from "./DeleteCareerPathButton"
 import { AREAS, CATEGORIES, LEVELS } from "./constants"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 300
 
 const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",

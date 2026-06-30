@@ -173,7 +173,33 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     setDeleting(false)
   }
 
+  const preview = headline.trim() ? (
+    <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Preview</p>
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold text-gray-900 leading-snug">{headline.trim()}</p>
+          <span className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0 mt-1" />
+        </div>
+        {description.trim() && (
+          <p className="text-xs text-gray-500 leading-relaxed">{description.trim()}</p>
+        )}
+        {ctaLabel.trim() && (
+          <button className="self-start mt-1 text-xs font-semibold text-purple-600 flex items-center gap-1" disabled>
+            {ctaLabel.trim()}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        )}
+        <p className="text-[10px] text-gray-300 mt-0.5">Just now</p>
+      </div>
+      <p className="text-[10px] text-gray-400 mt-2 text-center">
+        Sending to: <span className="font-medium text-gray-600">{SEGMENT_LABEL[segment] ?? segment}</span>
+      </p>
+    </div>
+  ) : null
+
   const compose = useMemo(() => (
+    <div className="flex flex-col gap-4">
     <form onSubmit={handleSend} className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-gray-900 text-sm">{editingId ? "Edit Notification" : "New Notification"}</h2>
@@ -262,6 +288,8 @@ export default function NotificationsClient({ notifications: initial }: { notifi
         {sending ? (editingId ? "Saving…" : "Sending…") : (editingId ? "Save Changes" : "Send Notification")}
       </button>
     </form>
+    {preview}
+    </div>
   ), [headline, description, ctaUrl, ctaLabel, segment, sending, result, editingId])
 
   return (

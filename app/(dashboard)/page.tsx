@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { AREAS, LEVELS } from "./career-paths/constants"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
 
 const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("last_active_at", todayStr),
     supabase.from("profiles").select("country, interested_areas"),
     supabase.from("career_paths").select("id, title, area, category, levels, is_published"),
-    supabase.from("user_courses").select("course_id, courses(id, course_name, category, level)"),
+    supabase.from("user_courses").select("course_id, progress_percent, courses(id, course_name, category, level)"),
   ])
 
   const totalUsers     = totalResult.count ?? 0
@@ -89,6 +89,16 @@ export default async function DashboardPage() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 
+  // ── Engagement metrics ─────────────────────────────────────────────
+  type UCRow = { course_id: string; progress_percent?: number | null; courses: { id: string; course_name: string; category: string; level: string } | null }
+  const ucRows = userCourses as unknown as UCRow[]
+  const totalEnrollments = ucRows.length
+  const completedEnrollments = ucRows.filter((uc) => uc.progress_percent === 100).length
+  const completionRate = totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0
+  const avgProgress = totalEnrollments > 0
+    ? Math.round(ucRows.reduce((sum: number, uc: UCRow) => sum + (uc.progress_percent ?? 0), 0) / totalEnrollments)
+    : 0
+
   return (
     <div className="p-8 space-y-8">
       <div>
@@ -98,9 +108,16 @@ export default async function DashboardPage() {
 
       {/* ── Stat cards ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-5">
-        <StatCard label="Total Users"            value={totalUsers}     sub="all time" />
-        <StatCard label="Registered Today"        value={todayRegistered} sub="new sign-ups" accent="blue" />
-        <StatCard label="Active Today"            value={todayActive}    sub="visited today" accent="green" />
+        <StatCard label="Total Users"       value={totalUsers}      sub="all time" />
+        <StatCard label="Registered Today"  value={todayRegistered} sub="new sign-ups" accent="blue" />
+        <StatCard label="Active Today"      value={todayActive}     sub="visited today" accent="green" />
+      </div>
+
+      {/* ── Engagement row ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-5">
+        <StatCard label="Total Enrollments"  value={totalEnrollments}   sub="across all courses" />
+        <StatCard label="Completion Rate"    value={completionRate}     sub="% of enrollments finished" accent="green" suffix="%" />
+        <StatCard label="Avg. Progress"      value={avgProgress}        sub="% across active learners" accent="blue" suffix="%" />
       </div>
 
       {/* ── Two-column row ──────────────────────────────────────────── */}
@@ -210,12 +227,13 @@ export default async function DashboardPage() {
 }
 
 function StatCard({
-  label, value, sub, accent,
+  label, value, sub, accent, suffix,
 }: {
   label: string
   value: number
   sub: string
   accent?: "blue" | "green"
+  suffix?: string
 }) {
   const accentClass = accent === "blue"
     ? "text-blue-600"
@@ -226,7 +244,7 @@ function StatCard({
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className={`text-4xl font-bold mt-2 ${accentClass}`}>{value.toLocaleString()}</p>
+      <p className={`text-4xl font-bold mt-2 ${accentClass}`}>{value.toLocaleString()}{suffix}</p>
       <p className="text-xs text-gray-400 mt-1">{sub}</p>
     </div>
   )
