@@ -95,13 +95,35 @@ const ContentManager = forwardRef<
 >(function ContentManager({ courseId, courseCategory, courseSlug, initialLessons, initialQuizQuestions, onActiveChange }, ref) {
   const mediaFolder = `courses/${courseCategory}/${courseSlug}`
 
-  const [lessons,   setLessons]   = useState<Lesson[]>(initialLessons)
-  const [drafts,    setDrafts]    = useState<Record<string, LessonDraft>>(() =>
+  const [lessons,        setLessons]        = useState<Lesson[]>(initialLessons)
+  const [drafts,         setDrafts]         = useState<Record<string, LessonDraft>>(() =>
     initDrafts(initialLessons, initialQuizQuestions)
   )
-  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set())
-  const [activeKey, setActiveKey] = useState<string | null>(null)
-  const [showForm,  setShowForm]  = useState(false)
+  const [dirtyKeys,      setDirtyKeys]      = useState<Set<string>>(new Set())
+  const [activeKey,      setActiveKey]      = useState<string | null>(null)
+  const [showForm,       setShowForm]       = useState(false)
+  const [generatingFor,  setGeneratingFor]  = useState<string | null>(null)
+  const [tsStatus,       setTsStatus]       = useState<Record<string, "done" | "error">>({})
+
+  const handleGenerateTimestamps = async (lessonId: string) => {
+    setGeneratingFor(lessonId)
+    setTsStatus(s => { const n = {...s}; delete n[lessonId]; return n })
+    try {
+      const res = await fetch("/api/admin/generate-timestamps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Unknown error")
+      setTsStatus(s => ({ ...s, [lessonId]: "done" }))
+    } catch (err) {
+      setTsStatus(s => ({ ...s, [lessonId]: "error" }))
+      alert(`Failed: ${err}`)
+    } finally {
+      setGeneratingFor(null)
+    }
+  }
 
   // Stable refs so the imperative handle always sees latest values
   const draftsRef    = useRef(drafts);    useEffect(() => { draftsRef.current    = drafts    }, [drafts])
@@ -395,6 +417,24 @@ const ContentManager = forwardRef<
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Audio (MP3)</label>
             <AudioUploader value={cur.audioUrl} onChange={v => updateDraft("audioUrl", v)} placeholder="/audio/…" folder={mediaFolder} />
+            {cur.lessonId && !isNewKey(cur.lessonId) && cur.audioUrl && (
+              <button
+                type="button"
+                onClick={() => handleGenerateTimestamps(cur.lessonId!)}
+                disabled={generatingFor === cur.lessonId}
+                className="self-start mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50"
+                style={{
+                  background: tsStatus[cur.lessonId!] === "done" ? "#f0fdf4" : "#f8f8f8",
+                  borderColor: tsStatus[cur.lessonId!] === "done" ? "#86efac" : tsStatus[cur.lessonId!] === "error" ? "#fca5a5" : "#e5e7eb",
+                  color: tsStatus[cur.lessonId!] === "done" ? "#15803d" : tsStatus[cur.lessonId!] === "error" ? "#b91c1c" : "#374151",
+                }}
+              >
+                {generatingFor === cur.lessonId ? "Generating…" :
+                 tsStatus[cur.lessonId!] === "done" ? "✓ Timestamps ready" :
+                 tsStatus[cur.lessonId!] === "error" ? "✗ Failed — retry" :
+                 "⚡ Generate Timestamps"}
+              </button>
+            )}
           </div>
 
           {/* Published + close */}
