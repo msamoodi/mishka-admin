@@ -1,6 +1,7 @@
 "use client"
 import { useState, useMemo } from "react"
 import Link from "next/link"
+import { SortableTh } from "@/components/SortableTh"
 
 type Ticket = {
   id: string
@@ -27,11 +28,19 @@ function StatusBadge({ status }: { status: string }) {
 const STATUS_OPTIONS = ["all", "open", "pending", "resolved"] as const
 type StatusFilter = typeof STATUS_OPTIONS[number]
 
+type TicketSortCol = "subject" | "email" | "status" | "created_at"
+
 export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [typeFilter, setTypeFilter] = useState("all")
   const [search, setSearch] = useState("")
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc")
+  const [sortCol, setSortCol] = useState<TicketSortCol>("created_at")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+
+  const onSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setSortCol(col as TicketSortCol); setSortDir("asc") }
+  }
 
   const ticketTypes = useMemo(() => {
     const types = [...new Set(tickets.map((t) => t.subject))].sort()
@@ -48,10 +57,13 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
         return email.toLowerCase().includes(search.toLowerCase())
       })
       .sort((a, b) => {
-        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        return sortDir === "desc" ? -diff : diff
+        let av: string, bv: string
+        if (sortCol === "email") { av = a.profiles?.email ?? ""; bv = b.profiles?.email ?? "" }
+        else if (sortCol === "created_at") { av = a.created_at; bv = b.created_at }
+        else { av = (a[sortCol] ?? "").toString(); bv = (b[sortCol] ?? "").toString() }
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
       })
-  }, [tickets, statusFilter, typeFilter, search, sortDir])
+  }, [tickets, statusFilter, typeFilter, search, sortCol, sortDir])
 
   return (
     <div className="p-8">
@@ -111,17 +123,6 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
           </svg>
         </div>
 
-        {/* Sort by date */}
-        <button
-          onClick={() => setSortDir((d) => d === "desc" ? "asc" : "desc")}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-600 hover:bg-gray-50 flex items-center gap-1.5 transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M3 6h18M6 12h12M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Date {sortDir === "desc" ? "↓" : "↑"}
-        </button>
-
         {/* Result count */}
         <span className="text-xs text-gray-400 ml-auto">{filtered.length} ticket{filtered.length !== 1 ? "s" : ""}</span>
       </div>
@@ -131,10 +132,10 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Ticket Type</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Date</th>
+              <SortableTh col="subject"    label="Ticket Type" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="email"      label="Email"       sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="status"     label="Status"      sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="created_at" label="Date"        sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>

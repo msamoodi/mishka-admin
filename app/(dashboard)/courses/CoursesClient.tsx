@@ -2,6 +2,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import DeleteCourseButton from "./DeleteCourseButton"
+import { SortableTh } from "@/components/SortableTh"
 
 type Course = {
   id: string
@@ -36,6 +37,8 @@ const CATEGORIES = [
   { value: "data-and-ai-literacy", label: "Data & AI Literacy" },
 ]
 
+type SortCol = "course_name" | "course_type" | "category" | "level" | "lesson_count" | "is_published"
+
 export default function CoursesClient({ courses }: { courses: Course[] }) {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState("")
@@ -44,6 +47,13 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
   const [courseType, setCourseType] = useState("")
   const [pageSize, setPageSize] = useState(20)
   const [page, setPage] = useState(1)
+  const [sortCol, setSortCol] = useState<SortCol | "">("")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  const onSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setSortCol(col as SortCol); setSortDir("asc"); setPage(1) }
+  }
 
   const filtered = courses.filter(c => {
     if (query.trim() && !(
@@ -58,9 +68,17 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
     return true
   })
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const sorted = sortCol ? [...filtered].sort((a, b) => {
+    let av: string | number, bv: string | number
+    if (sortCol === "is_published") { av = a.is_published ? 1 : 0; bv = b.is_published ? 1 : 0 }
+    else if (sortCol === "lesson_count") { av = a.lesson_count; bv = b.lesson_count }
+    else { av = (a[sortCol] ?? "").toString().toLowerCase(); bv = (b[sortCol] ?? "").toString().toLowerCase() }
+    return sortDir === "asc" ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0)
+  }) : filtered
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const currentPage = Math.min(page, totalPages)
-  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <div className="p-8">
@@ -160,17 +178,17 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Course</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Category</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Level</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Lessons</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
+              <SortableTh col="course_name" label="Course"   sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="course_type" label="Type"     sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="category"    label="Category" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="level"       label="Level"    sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="lesson_count" label="Lessons" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="is_published" label="Status"  sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
                   {query ? `No courses matching "${query}"` : "No courses yet. Create your first one."}

@@ -3,6 +3,7 @@ import { withBasePath, resolveAppUrl } from "@/lib/basePath"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { SortableTh } from "@/components/SortableTh"
 
 type User = {
   id: string
@@ -59,6 +60,8 @@ function fmt(iso: string | null) {
     " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 }
 
+type UserSortCol = "rank" | "email" | "last_sign_in_at" | "last_seen_at"
+
 export default function UsersClient({ users }: { users: User[] }) {
   const router = useRouter()
   const [query, setQuery] = useState("")
@@ -67,14 +70,27 @@ export default function UsersClient({ users }: { users: User[] }) {
   const [isPending, startTransition] = useTransition()
   const [pageSize, setPageSize] = useState(20)
   const [page, setPage] = useState(1)
+  const [sortCol, setSortCol] = useState<UserSortCol | "">("")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  const onSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setSortCol(col as UserSortCol); setSortDir("asc"); setPage(1) }
+  }
 
   const filtered = query.trim()
     ? users.filter(u => u.email?.toLowerCase().includes(query.toLowerCase()))
     : users
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const sorted = sortCol ? [...filtered].sort((a, b) => {
+    const av = (a[sortCol] ?? "").toString().toLowerCase()
+    const bv = (b[sortCol] ?? "").toString().toLowerCase()
+    return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
+  }) : filtered
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const currentPage = Math.min(page, totalPages)
-  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const allSelected = paginated.length > 0 && paginated.every(u => selected.has(u.id))
   const someSelected = paginated.some(u => selected.has(u.id))
@@ -199,16 +215,16 @@ export default function UsersClient({ users }: { users: User[] }) {
                 />
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500 w-32">User ID</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Rank</th>
+              <SortableTh col="rank"            label="Rank"       sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <th className="text-left px-4 py-3 font-medium text-gray-500">Avatar</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Last Login</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Last Visit</th>
+              <SortableTh col="email"           label="Email"      sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="last_sign_in_at" label="Last Login" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="last_seen_at"    label="Last Visit" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <th className="px-4 py-3 w-16" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
                   {query ? `No users matching "${query}"` : "No users yet"}
