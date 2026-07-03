@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { SortableTh } from "@/components/SortableTh"
+import { withBasePath } from "@/lib/basePath"
 
 type Ticket = {
   id: string
@@ -27,15 +28,17 @@ function StatusBadge({ status }: { status: string }) {
 
 const STATUS_OPTIONS = ["all", "open", "pending", "resolved"] as const
 type StatusFilter = typeof STATUS_OPTIONS[number]
-
 type TicketSortCol = "subject" | "email" | "status" | "created_at"
 
-export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
+export default function TicketsClient({ tickets: initial }: { tickets: Ticket[] }) {
+  const [tickets, setTickets] = useState(initial)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [typeFilter, setTypeFilter] = useState("all")
   const [search, setSearch] = useState("")
   const [sortCol, setSortCol] = useState<TicketSortCol>("created_at")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   const onSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc")
@@ -65,6 +68,50 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
       })
   }, [tickets, statusFilter, typeFilter, search, sortCol, sortDir])
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((t) => selected.has(t.id))
+
+  const toggleAll = () => {
+    if (allFilteredSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        filtered.forEach((t) => next.delete(t.id))
+        return next
+      })
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        filtered.forEach((t) => next.add(t.id))
+        return next
+      })
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleDelete = async () => {
+    if (selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} ticket${selected.size !== 1 ? "s" : ""}? This cannot be undone.`)) return
+    setDeleting(true)
+    const res = await fetch(withBasePath("/api/admin/delete-tickets"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketIds: [...selected] }),
+    })
+    if (res.ok) {
+      setTickets((prev) => prev.filter((t) => !selected.has(t.id)))
+      setSelected(new Set())
+    } else {
+      alert("Delete failed. Please try again.")
+    }
+    setDeleting(false)
+  }
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -77,7 +124,7 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
         </p>
       </div>
 
-      {/* Filters bar */}
+      {/* Filters + delete toolbar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Email search */}
         <div className="relative">
@@ -125,6 +172,20 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
 
         {/* Result count */}
         <span className="text-xs text-gray-400 ml-auto">{filtered.length} ticket{filtered.length !== 1 ? "s" : ""}</span>
+
+        {/* Delete button — visible when something is selected */}
+        {selected.size > 0 && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="h-9 px-4 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {deleting ? "Deleting…" : `Delete ${selected.size}`}
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -132,6 +193,14 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={toggleAll}
+                  className="rounded border-gray-300 text-gray-900 focus:ring-gray-400 cursor-pointer"
+                />
+              </th>
               <SortableTh col="subject"    label="Ticket Type" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="email"      label="Email"       sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="status"     label="Status"      sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
@@ -142,11 +211,22 @@ export default function TicketsClient({ tickets }: { tickets: Ticket[] }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-gray-400">No tickets match your filters.</td>
+                <td colSpan={6} className="text-center py-12 text-gray-400">No tickets match your filters.</td>
               </tr>
             ) : (
               filtered.map((ticket) => (
-                <tr key={ticket.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                <tr
+                  key={ticket.id}
+                  className={`border-b border-gray-50 last:border-0 transition-colors ${selected.has(ticket.id) ? "bg-red-50" : "hover:bg-gray-50"}`}
+                >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(ticket.id)}
+                      onChange={() => toggleOne(ticket.id)}
+                      className="rounded border-gray-300 text-gray-900 focus:ring-gray-400 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{ticket.subject}</td>
                   <td className="px-4 py-3 text-gray-500">{ticket.profiles?.email ?? "—"}</td>
                   <td className="px-4 py-3"><StatusBadge status={ticket.status} /></td>
