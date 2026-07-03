@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 const NAV = [
@@ -17,6 +18,16 @@ const NAV = [
 export default function AdminSidebar({ name }: { name: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [openTickets, setOpenTickets] = useState(0)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open")
+      .then(({ count }) => setOpenTickets(count ?? 0))
+  }, [pathname])
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -45,7 +56,15 @@ export default function AdminSidebar({ name }: { name: string }) {
               }`}
             >
               <span>{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/tickets" && openTickets > 0 && (
+                <span
+                  className="inline-flex items-center justify-center rounded-full text-white text-[10px] font-semibold leading-none"
+                  style={{ background: "#FF2B4C", minWidth: 18, height: 18, padding: "0 5px" }}
+                >
+                  {openTickets}
+                </span>
+              )}
             </Link>
           )
         })}

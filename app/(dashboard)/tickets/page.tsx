@@ -4,13 +4,26 @@ import TicketsClient from "./TicketsClient"
 export default async function TicketsPage() {
   const supabase = createServiceClient()
 
-  // Single query with embedded profile join — eliminates the sequential 2-query pattern
-  const { data: tickets, error } = await supabase
+  const { data: ticketRows, error } = await supabase
     .from("tickets")
-    .select("id, subject, message, status, created_at, user_id, profiles(id, first_name, last_name, email)")
+    .select("id, subject, message, status, created_at, user_id")
     .order("created_at", { ascending: false })
 
   if (error) console.error("[tickets]", error)
+
+  const rows = ticketRows ?? []
+  const userIds = [...new Set(rows.map((t) => t.user_id).filter(Boolean))] as string[]
+
+  let profileMap: Record<string, { id: string; first_name: string | null; last_name: string | null; email: string | null }> = {}
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", userIds)
+    if (profiles) {
+      profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]))
+    }
+  }
 
   type Ticket = {
     id: string
@@ -22,5 +35,10 @@ export default async function TicketsPage() {
     profiles: { id: string; first_name: string | null; last_name: string | null; email: string | null } | null
   }
 
-  return <TicketsClient tickets={(tickets ?? []) as unknown as Ticket[]} />
+  const tickets: Ticket[] = rows.map((t) => ({
+    ...t,
+    profiles: t.user_id ? (profileMap[t.user_id] ?? null) : null,
+  }))
+
+  return <TicketsClient tickets={tickets} />
 }
