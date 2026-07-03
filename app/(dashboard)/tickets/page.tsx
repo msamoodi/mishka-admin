@@ -33,7 +33,7 @@ export default async function TicketsPage() {
       .select("id, first_name, last_name, email")
       .in("id", userIds)
     if (profiles) {
-      profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]))
+      profileMap = Object.fromEntries(profiles.map((p: { id: string; first_name: string | null; last_name: string | null; email: string | null }) => [p.id, p]))
     }
   }
 
