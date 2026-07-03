@@ -24,7 +24,7 @@ export default async function TicketsPage() {
   }
 
   const rows = ticketRows ?? []
-  const userIds = [...new Set(rows.map((t) => t.user_id).filter(Boolean))] as string[]
+  const userIds = [...new Set(rows.map((t: { user_id: string | null }) => t.user_id).filter(Boolean))] as string[]
 
   let profileMap: Record<string, { id: string; first_name: string | null; last_name: string | null; email: string | null }> = {}
   if (userIds.length > 0) {
