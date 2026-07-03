@@ -3,6 +3,24 @@ import TicketsClient from "./TicketsClient"
 
 export const dynamic = "force-dynamic"
 
+type TicketRow = {
+  id: string
+  subject: string
+  message: string
+  status: string
+  created_at: string
+  user_id: string | null
+}
+
+type ProfileRow = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+}
+
+type Ticket = TicketRow & { profiles: ProfileRow | null }
+
 export default async function TicketsPage() {
   const supabase = createServiceClient()
 
@@ -23,28 +41,18 @@ export default async function TicketsPage() {
     )
   }
 
-  const rows = ticketRows ?? []
-  const userIds = [...new Set(rows.map((t: { user_id: string | null }) => t.user_id).filter(Boolean))] as string[]
+  const rows: TicketRow[] = ticketRows ?? []
+  const userIds = [...new Set(rows.map((t) => t.user_id).filter(Boolean))] as string[]
 
-  let profileMap: Record<string, { id: string; first_name: string | null; last_name: string | null; email: string | null }> = {}
+  let profileMap: Record<string, ProfileRow> = {}
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, first_name, last_name, email")
       .in("id", userIds)
     if (profiles) {
-      profileMap = Object.fromEntries(profiles.map((p: { id: string; first_name: string | null; last_name: string | null; email: string | null }) => [p.id, p]))
+      profileMap = Object.fromEntries((profiles as ProfileRow[]).map((p) => [p.id, p]))
     }
-  }
-
-  type Ticket = {
-    id: string
-    subject: string
-    message: string
-    status: string
-    created_at: string
-    user_id: string | null
-    profiles: { id: string; first_name: string | null; last_name: string | null; email: string | null } | null
   }
 
   const tickets: Ticket[] = rows.map((t) => ({
