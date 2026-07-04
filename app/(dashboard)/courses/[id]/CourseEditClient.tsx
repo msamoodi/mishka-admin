@@ -78,20 +78,24 @@ export default function CourseEditClient({
     <>
       <Toast toast={toast} onClose={closeToast} />
 
-      <div className="grid grid-cols-[1fr_1fr] gap-8 items-start">
+      <div className="grid grid-cols-[1fr_1fr] gap-8 items-start" style={{ height: "calc(100vh - 260px)" }}>
         {/* Left — course details + objectives */}
-        <CourseForm ref={courseRef} initial={course as any} initialObjectives={objectives} />
+        <div className="overflow-y-auto h-full pr-1">
+          <CourseForm ref={courseRef} initial={course as any} initialObjectives={objectives} />
+        </div>
 
         {/* Right — lessons & quizzes */}
-        <ContentManager
-          ref={contentRef}
-          courseId={courseId}
-          courseCategory={course.category as string}
-          courseSlug={course.slug as string}
-          initialLessons={lessons}
-          initialQuizQuestions={quizQuestions}
-          onActiveChange={handleActiveChange}
-        />
+        <div className="overflow-y-auto h-full pr-1">
+          <ContentManager
+            ref={contentRef}
+            courseId={courseId}
+            courseCategory={course.category as string}
+            courseSlug={course.slug as string}
+            initialLessons={lessons}
+            initialQuizQuestions={quizQuestions}
+            onActiveChange={handleActiveChange}
+          />
+        </div>
       </div>
 
       {/* ── Bottom action bar ─────────────────────────────────────────────── */}
