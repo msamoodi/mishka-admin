@@ -4,7 +4,7 @@ export const AREAS = [
   { label: "AI Tools for Creatives & Professionals", value: "ai-tools" },
   { label: "Digital Marketing Tech",                 value: "digital-marketing-tech" },
   { label: "Data & Decision-Making",                 value: "data-decision-making" },
-  { label: "Future Skills & Innovation",             value: "future-skills" },
+  { label: "User Research",                          value: "user-research" },
 ]
 
 export const CATEGORIES = [
