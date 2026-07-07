@@ -15,9 +15,9 @@ export default async function NewCareerPathPage() {
     <div className="p-8">
       <div className="mb-6">
         <Link href="/career-paths" className="text-sm text-gray-500 hover:text-gray-900">
-          ← Career Paths
+          ← Learning Paths
         </Link>
-        <h1 className="text-xl font-bold text-gray-900 mt-1">New Career Path</h1>
+        <h1 className="text-xl font-bold text-gray-900 mt-1">New Learning Path</h1>
       </div>
 
       <CareerPathForm courses={courses ?? []} />

@@ -152,11 +152,11 @@ export default async function DashboardPage() {
         {/* Career paths by popularity */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">Popular Career Paths</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Popular Learning Paths</h2>
             <p className="text-xs text-gray-400 mt-0.5">Ranked by matching user interests</p>
           </div>
           {careerPathsRanked.length === 0 ? (
-            <p className="px-5 py-10 text-center text-gray-400 text-sm">No career paths yet</p>
+            <p className="px-5 py-10 text-center text-gray-400 text-sm">No learning paths yet</p>
           ) : (
             <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
               {careerPathsRanked.map((cp, i) => (

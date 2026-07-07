@@ -33,7 +33,7 @@ export default async function EditCareerPathPage({
     <div className="p-8">
       <div className="mb-6">
         <Link href="/career-paths" className="text-sm text-gray-500 hover:text-gray-900">
-          ← Career Paths
+          ← Learning Paths
         </Link>
         <h1 className="text-xl font-bold text-gray-900 mt-1">{path.title}</h1>
         <p className="text-sm text-gray-400 font-mono mt-0.5">{id}</p>

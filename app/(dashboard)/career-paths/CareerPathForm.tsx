@@ -187,7 +187,7 @@ export default function CareerPathForm({
 
         {/* ── Info ─────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Career Path Info</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Learning Path Info</h2>
           <div className="flex flex-col gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
@@ -415,7 +415,7 @@ export default function CareerPathForm({
             disabled={saving}
             className="h-10 px-6 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >
-            {saving ? "Saving…" : "Save Career Path"}
+            {saving ? "Saving…" : "Save Learning Path"}
           </button>
         </div>
 

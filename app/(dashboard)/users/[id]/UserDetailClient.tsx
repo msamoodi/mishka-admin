@@ -169,7 +169,7 @@ export default function UserDetailClient({
       const reverted = new Set(assignedIds)
       assigning ? reverted.delete(careerPathId) : reverted.add(careerPathId)
       setAssignedIds(reverted)
-      setToast({ message: json.error || "Failed to update career path", type: "error" })
+      setToast({ message: json.error || "Failed to update learning path", type: "error" })
     }
   }
 
@@ -329,16 +329,16 @@ export default function UserDetailClient({
           <InfoRow label="Account Created" value={fmt(authUser?.created_at)} />
         </div>
 
-        {/* ── Career Paths ────────────────────────────────────────────── */}
+        {/* ── Learning Paths ────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Career Paths</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Learning Paths</h3>
             <p className="text-xs text-gray-400 mt-0.5">
               {assignedIds.size} assigned
             </p>
           </div>
           {allCareerPaths.length === 0 ? (
-            <p className="px-6 py-10 text-center text-gray-400 text-sm">No published career paths found</p>
+            <p className="px-6 py-10 text-center text-gray-400 text-sm">No published learning paths found</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {allCareerPaths.map((path) => {

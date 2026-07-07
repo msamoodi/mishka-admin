@@ -53,7 +53,7 @@ export default async function CareerPathsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Career Paths</h1>
+          <h1 className="text-xl font-bold text-gray-900">Learning Paths</h1>
           <p className="text-sm text-gray-500 mt-0.5">{paths?.length ?? 0} total</p>
         </div>
         <Link
@@ -82,7 +82,7 @@ export default async function CareerPathsPage() {
             {(!paths || paths.length === 0) && (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
-                  No career paths yet. Create your first one.
+                  No learning paths yet. Create your first one.
                 </td>
               </tr>
             )}

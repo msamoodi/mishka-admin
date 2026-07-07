@@ -8,7 +8,7 @@ const NAV = [
   { label: "Dashboard",     href: "/",               icon: "📊" },
   { label: "Courses",       href: "/courses",       icon: "📚" },
   { label: "Categories",    href: "/categories",    icon: "🏷️" },
-  { label: "Career Paths",  href: "/career-paths",  icon: "🗺️" },
+  { label: "Learning Paths",  href: "/career-paths",  icon: "🗺️" },
   { label: "Users",         href: "/users",         icon: "👥" },
   { label: "Tickets",       href: "/tickets",       icon: "🎫" },
   { label: "Notifications", href: "/notifications", icon: "🔔" },
