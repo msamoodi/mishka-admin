@@ -3,6 +3,21 @@ import { withBasePath } from "@/lib/basePath"
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from "react"
 import ImageUploader from "@/components/ImageUploader"
 import AudioUploader from "@/components/AudioUploader"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +95,75 @@ function initDrafts(lessons: Lesson[], questions: QuizQuestion[]): Record<string
   return map
 }
 
+// ─── Sortable row ────────────────────────────────────────────────────────────
+
+function SortableLesson({
+  lesson,
+  isActive,
+  isDirty,
+  draftTitle,
+  onClick,
+}: {
+  lesson: Lesson
+  isActive: boolean
+  isDirty: boolean
+  draftTitle: string
+  onClick: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lesson.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-stretch gap-1">
+      {/* Drag handle */}
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="flex items-center justify-center px-1.5 rounded-lg text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none"
+        tabIndex={-1}
+        aria-label="Drag to reorder"
+      >
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+          <circle cx="3" cy="3"  r="1.5" /><circle cx="9" cy="3"  r="1.5" />
+          <circle cx="3" cy="9"  r="1.5" /><circle cx="9" cy="9"  r="1.5" />
+          <circle cx="3" cy="15" r="1.5" /><circle cx="9" cy="15" r="1.5" />
+        </svg>
+      </button>
+
+      {/* Row button */}
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+          isActive ? "bg-gray-900 text-white" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-800"
+        }`}
+      >
+        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+          lesson.lesson_type === "quiz"
+            ? isActive ? "bg-amber-400 text-amber-900" : "bg-amber-50 text-amber-700"
+            : isActive ? "bg-blue-400 text-blue-900"  : "bg-blue-50 text-blue-700"
+        }`}>
+          {lesson.lesson_type === "quiz" ? "Quiz" : "Lesson"}
+        </span>
+        <span className="flex-1 text-sm truncate">
+          {isDirty && draftTitle ? draftTitle : lesson.title}
+        </span>
+        {isDirty
+          ? <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isActive ? "bg-white/20 text-white" : "bg-amber-50 text-amber-600"}`}>edited</span>
+          : <span className={`text-xs ${isActive ? "opacity-60" : "opacity-40"}`}>{lesson.is_published ? "Published" : "Draft"}</span>
+        }
+      </button>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ContentManager = forwardRef<
@@ -102,6 +186,27 @@ const ContentManager = forwardRef<
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set())
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [showForm,  setShowForm]  = useState(false)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    setLessons(prev => {
+      const sorted = [...prev].sort((a, b) => a.order_index - b.order_index)
+      const oldIdx = sorted.findIndex(l => l.id === active.id)
+      const newIdx = sorted.findIndex(l => l.id === over.id)
+      const reordered = arrayMove(sorted, oldIdx, newIdx).map((l, i) => ({ ...l, order_index: i }))
+      // Persist in background
+      fetch(withBasePath("/api/admin/reorder-lessons"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: reordered.map(l => ({ id: l.id, order_index: l.order_index })) }),
+      })
+      return reordered
+    })
+  }, [])
 
   // Stable refs so the imperative handle always sees latest values
   const draftsRef    = useRef(drafts);    useEffect(() => { draftsRef.current    = drafts    }, [drafts])
@@ -262,35 +367,20 @@ const ContentManager = forwardRef<
       {/* Lesson list */}
       {(lessons.length > 0 || Object.keys(drafts).some(isNewKey)) && (
         <div className="flex flex-col gap-1 mb-4">
-          {sortedLessons.map(l => {
-            const isDirty  = dirtyKeys.has(l.id)
-            const isActive = activeKey === l.id
-            return (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => openLesson(l.id)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                  isActive ? "bg-gray-900 text-white" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-800"
-                }`}
-              >
-                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                  l.lesson_type === "quiz"
-                    ? isActive ? "bg-amber-400 text-amber-900" : "bg-amber-50 text-amber-700"
-                    : isActive ? "bg-blue-400 text-blue-900"  : "bg-blue-50 text-blue-700"
-                }`}>
-                  {l.lesson_type === "quiz" ? "Quiz" : "Lesson"}
-                </span>
-                <span className="flex-1 text-sm truncate">
-                  {isDirty && drafts[l.id]?.title.trim() ? drafts[l.id].title : l.title}
-                </span>
-                {isDirty
-                  ? <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isActive ? "bg-white/20 text-white" : "bg-amber-50 text-amber-600"}`}>edited</span>
-                  : <span className={`text-xs ${isActive ? "opacity-60" : "opacity-40"}`}>{l.is_published ? "Published" : "Draft"}</span>
-                }
-              </button>
-            )
-          })}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortedLessons.map(l => l.id)} strategy={verticalListSortingStrategy}>
+              {sortedLessons.map(l => (
+                <SortableLesson
+                  key={l.id}
+                  lesson={l}
+                  isActive={activeKey === l.id}
+                  isDirty={dirtyKeys.has(l.id)}
+                  draftTitle={drafts[l.id]?.title ?? ""}
+                  onClick={() => openLesson(l.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {/* Unsaved new lessons */}
           {Object.keys(drafts).filter(isNewKey).map(key => (
