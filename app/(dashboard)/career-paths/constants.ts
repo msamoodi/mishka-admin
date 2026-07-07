@@ -20,3 +20,10 @@ export const LEVELS = [
   { value: "intermediate", label: "Intermediate" },
   { value: "advanced",     label: "Advanced" },
 ]
+
+export const CAREER_LEVELS = [
+  { value: "junior", label: "Junior" },
+  { value: "middle", label: "Middle" },
+  { value: "senior", label: "Senior" },
+  { value: "lead",   label: "Lead" },
+]

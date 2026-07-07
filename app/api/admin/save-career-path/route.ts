@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, title, area, category, levels, course_ids, is_published } = body
+    const { id, title, area, category, levels, career_levels, course_ids, is_published } = body
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       area: area ?? "",
       category: category ?? "",
       levels: levels ?? [],
+      career_levels: career_levels ?? [],
       course_ids: course_ids ?? [],
       is_published: is_published ?? false,
       updated_at: new Date().toISOString(),

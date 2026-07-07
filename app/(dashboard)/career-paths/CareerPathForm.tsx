@@ -3,7 +3,7 @@ import { withBasePath } from "@/lib/basePath"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
-import { AREAS, CATEGORIES, LEVELS } from "./constants"
+import { AREAS, CATEGORIES, LEVELS, CAREER_LEVELS } from "./constants"
 
 const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",
@@ -25,6 +25,7 @@ export type CareerPath = {
   area: string
   category: string
   levels: string[]
+  career_levels: string[]
   course_ids: string[]
   is_published: boolean
 }
@@ -41,6 +42,7 @@ export default function CareerPathForm({
   const [area, setArea] = useState(initial?.area ?? "")
   const [category, setCategory] = useState(initial?.category ?? "")
   const [levels, setLevels] = useState<string[]>(initial?.levels ?? [])
+  const [careerLevels, setCareerLevels] = useState<string[]>(initial?.career_levels ?? [])
   const [courseIds, setCourseIds] = useState<string[]>(initial?.course_ids ?? [])
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? false)
   const [saving, setSaving] = useState(false)
@@ -49,6 +51,12 @@ export default function CareerPathForm({
 
   const toggleLevel = (val: string) => {
     setLevels(prev =>
+      prev.includes(val) ? prev.filter(l => l !== val) : [...prev, val]
+    )
+  }
+
+  const toggleCareerLevel = (val: string) => {
+    setCareerLevels(prev =>
       prev.includes(val) ? prev.filter(l => l !== val) : [...prev, val]
     )
   }
@@ -78,6 +86,7 @@ export default function CareerPathForm({
         area,
         category,
         levels,
+        career_levels: careerLevels,
         course_ids: courseIds,
         is_published: isPublished,
       }),
@@ -181,6 +190,28 @@ export default function CareerPathForm({
                 }`}
               >
                 {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Career Level ─────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Who is this for?</h2>
+          <p className="text-xs text-gray-400 mb-4">Career level(s) this path targets — matched to user profiles</p>
+          <div className="flex gap-3">
+            {CAREER_LEVELS.map(l => (
+              <button
+                key={l.value}
+                type="button"
+                onClick={() => toggleCareerLevel(l.value)}
+                className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                  careerLevels.includes(l.value)
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-200 text-gray-600 hover:border-gray-400"
+                }`}
+              >
+                {l.label}
               </button>
             ))}
           </div>

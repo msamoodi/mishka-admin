@@ -16,7 +16,7 @@ export default async function EditCareerPathPage({
   const [pathResult, coursesResult] = await Promise.all([
     supabase
       .from("career_paths")
-      .select("id, title, area, category, levels, course_ids, is_published")
+      .select("id, title, area, category, levels, career_levels, course_ids, is_published")
       .eq("id", id)
       .single(),
     supabase
@@ -45,8 +45,9 @@ export default async function EditCareerPathPage({
           title:        path.title,
           area:         path.area ?? "",
           category:     path.category ?? "",
-          levels:       (path.levels as string[]) ?? [],
-          course_ids:   (path.course_ids as string[]) ?? [],
+          levels:        (path.levels as string[]) ?? [],
+          career_levels: (path.career_levels as string[]) ?? [],
+          course_ids:    (path.course_ids as string[]) ?? [],
           is_published: path.is_published ?? false,
         }}
         courses={coursesResult.data ?? []}

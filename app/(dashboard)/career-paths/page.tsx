@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import DeleteCareerPathButton from "./DeleteCareerPathButton"
-import { AREAS, CATEGORIES, LEVELS } from "./constants"
+import { AREAS, CATEGORIES, LEVELS, CAREER_LEVELS } from "./constants"
 
 export const revalidate = 300
 
@@ -9,6 +9,13 @@ const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",
   intermediate: "bg-purple-50 text-purple-700",
   advanced:     "bg-orange-50 text-orange-700",
+}
+
+const CAREER_LEVEL_COLOR: Record<string, string> = {
+  junior: "bg-sky-50 text-sky-700",
+  middle: "bg-violet-50 text-violet-700",
+  senior: "bg-amber-50 text-amber-700",
+  lead:   "bg-rose-50 text-rose-700",
 }
 
 function areaLabel(value: string) {
@@ -29,6 +36,7 @@ type CareerPathRow = {
   area: string
   category: string
   levels: string[]
+  career_levels: string[]
   course_ids: string[]
   is_published: boolean
   created_at: string
@@ -38,7 +46,7 @@ export default async function CareerPathsPage() {
   const supabase = createServiceClient()
   const { data: paths } = await supabase
     .from("career_paths")
-    .select("id, title, area, category, levels, course_ids, is_published, created_at")
+    .select("id, title, area, category, levels, career_levels, course_ids, is_published, created_at")
     .order("created_at", { ascending: false })
 
   return (
@@ -63,6 +71,7 @@ export default async function CareerPathsPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Title</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Area</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Category</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">For</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Levels</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Courses</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
@@ -95,7 +104,21 @@ export default async function CareerPathsPage() {
                   {p.category ? categoryLabel(p.category) : <span className="text-gray-300">—</span>}
                 </td>
 
-                {/* Levels */}
+                {/* Career levels */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {((p.career_levels ?? []) as string[]).length === 0
+                      ? <span className="text-gray-300 text-xs">—</span>
+                      : ((p.career_levels ?? []) as string[]).map(l => (
+                          <span key={l} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CAREER_LEVEL_COLOR[l] ?? "bg-gray-100 text-gray-500"}`}>
+                            {CAREER_LEVELS.find(c => c.value === l)?.label ?? l}
+                          </span>
+                        ))
+                    }
+                  </div>
+                </td>
+
+                {/* Course difficulty levels */}
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {(p.levels as string[]).length === 0
