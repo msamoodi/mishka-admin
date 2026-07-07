@@ -183,7 +183,7 @@ export default function CareerPathForm({
     <>
       <Toast toast={toast} onClose={closeToast} />
 
-      <div className="flex flex-col gap-6 max-w-3xl">
+      <div className="flex flex-col gap-6 max-w-5xl">
 
         {/* ── Info ─────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -313,86 +313,98 @@ export default function CareerPathForm({
           </div>
         </div>
 
-        {/* ── Selected courses (ordered) ───────────────────────────── */}
-        {courseIds.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">
-              Course Order
-              <span className="ml-2 text-xs font-normal text-gray-400">{courseIds.length} selected</span>
-            </h2>
-            <p className="text-xs text-gray-400 mb-4">Drag to set the learning sequence</p>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCourseDragEnd}>
-              <SortableContext items={courseIds} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-2">
-                  {courseIds.map((id, idx) => {
-                    const course = courses.find(c => c.id === id)
-                    if (!course) return null
-                    return (
-                      <SortableCourseRow
-                        key={id}
-                        course={course}
-                        index={idx}
-                        onRemove={() => toggleCourse(id)}
-                      />
-                    )
-                  })}
-                </div>
-              </SortableContext>
-            </DndContext>
-          </div>
-        )}
+        {/* ── Courses: picker (left) + order (right) ───────────────── */}
+        <div className="flex gap-4 items-start">
 
-        {/* ── Course picker ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">Add Courses</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {levels.length > 0 || categories.length > 0
-                ? `${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} match your filters`
-                : "Showing all courses — select categories or levels above to filter"}
-            </p>
-          </div>
-
-          {filteredCourses.length === 0 ? (
-            <p className="px-6 py-10 text-center text-gray-400 text-sm">
-              No courses match the selected filters
-            </p>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {filteredCourses.map(c => {
-                const isSelected = courseIds.includes(c.id)
-                return (
-                  <label
-                    key={c.id}
-                    className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors ${
-                      isSelected ? "bg-gray-50" : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleCourse(c.id)}
-                      className="w-4 h-4 rounded flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{c.course_name}</p>
-                      <p className="text-xs text-gray-400 capitalize mt-0.5">{c.category.replace(/-/g, " ")}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLOR[c.level] ?? "bg-gray-100 text-gray-600"}`}>
-                        {LEVELS.find(l => l.value === c.level)?.label ?? c.level}
-                      </span>
-                      {!c.is_published && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                          Draft
-                        </span>
-                      )}
-                    </div>
-                  </label>
-                )
-              })}
+          {/* Course picker */}
+          <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Add Courses</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {levels.length > 0 || categories.length > 0
+                  ? `${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} match your filters`
+                  : "Showing all courses — select categories or levels above to filter"}
+              </p>
             </div>
-          )}
+
+            {filteredCourses.length === 0 ? (
+              <p className="px-6 py-10 text-center text-gray-400 text-sm">
+                No courses match the selected filters
+              </p>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {filteredCourses.map(c => {
+                  const isSelected = courseIds.includes(c.id)
+                  return (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors ${
+                        isSelected ? "bg-gray-50" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleCourse(c.id)}
+                        className="w-4 h-4 rounded flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{c.course_name}</p>
+                        <p className="text-xs text-gray-400 capitalize mt-0.5">{c.category.replace(/-/g, " ")}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLOR[c.level] ?? "bg-gray-100 text-gray-600"}`}>
+                          {LEVELS.find(l => l.value === c.level)?.label ?? c.level}
+                        </span>
+                        {!c.is_published && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            Draft
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Course order (right sidebar) */}
+          <div className="w-72 flex-shrink-0 bg-white rounded-xl border border-gray-200 p-4 sticky top-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-0.5">
+              Course Order
+              {courseIds.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-gray-400">{courseIds.length}</span>
+              )}
+            </h2>
+            <p className="text-xs text-gray-400 mb-3">Drag to set the learning sequence</p>
+
+            {courseIds.length === 0 ? (
+              <p className="text-xs text-gray-300 text-center py-6 border-2 border-dashed border-gray-100 rounded-lg">
+                No courses selected yet
+              </p>
+            ) : (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCourseDragEnd}>
+                <SortableContext items={courseIds} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-2">
+                    {courseIds.map((id, idx) => {
+                      const course = courses.find(c => c.id === id)
+                      if (!course) return null
+                      return (
+                        <SortableCourseRow
+                          key={id}
+                          course={course}
+                          index={idx}
+                          onRemove={() => toggleCourse(id)}
+                        />
+                      )
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+
         </div>
 
         {/* ── Save ─────────────────────────────────────────────────── */}
