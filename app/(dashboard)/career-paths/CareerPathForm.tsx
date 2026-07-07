@@ -23,7 +23,7 @@ export type CareerPath = {
   id: string
   title: string
   area: string
-  category: string
+  categories: string[]
   levels: string[]
   career_levels: string[]
   course_ids: string[]
@@ -40,7 +40,7 @@ export default function CareerPathForm({
   const router = useRouter()
   const [title, setTitle] = useState(initial?.title ?? "")
   const [area, setArea] = useState(initial?.area ?? "")
-  const [category, setCategory] = useState(initial?.category ?? "")
+  const [categories, setCategories] = useState<string[]>(initial?.categories ?? [])
   const [levels, setLevels] = useState<string[]>(initial?.levels ?? [])
   const [careerLevels, setCareerLevels] = useState<string[]>(initial?.career_levels ?? [])
   const [courseIds, setCourseIds] = useState<string[]>(initial?.course_ids ?? [])
@@ -67,9 +67,17 @@ export default function CareerPathForm({
     )
   }
 
-  const filteredCourses = levels.length > 0
-    ? courses.filter(c => levels.includes(c.level))
-    : courses
+  const toggleCategory = (val: string) => {
+    setCategories(prev =>
+      prev.includes(val) ? prev.filter(c => c !== val) : [...prev, val]
+    )
+  }
+
+  const filteredCourses = courses.filter(c => {
+    const matchesLevel    = levels.length === 0     || levels.includes(c.level)
+    const matchesCategory = categories.length === 0 || categories.includes(c.category)
+    return matchesLevel && matchesCategory
+  })
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -84,7 +92,7 @@ export default function CareerPathForm({
         id: initial?.id,
         title,
         area,
-        category,
+        categories,
         levels,
         career_levels: careerLevels,
         course_ids: courseIds,
@@ -173,18 +181,18 @@ export default function CareerPathForm({
           </div>
         </div>
 
-        {/* ── Category ─────────────────────────────────────────────── */}
+        {/* ── Categories ───────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Category</h2>
-          <p className="text-xs text-gray-400 mb-4">Primary course category for this path</p>
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Categories</h2>
+          <p className="text-xs text-gray-400 mb-4">Course categories included in this path — select all that apply</p>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map(c => (
               <button
                 key={c.value}
                 type="button"
-                onClick={() => setCategory(prev => prev === c.value ? "" : c.value)}
+                onClick={() => toggleCategory(c.value)}
                 className={`px-4 py-2 rounded-full border-2 text-sm font-medium transition-all ${
-                  category === c.value
+                  categories.includes(c.value)
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-200 text-gray-600 hover:border-gray-400"
                 }`}
@@ -245,9 +253,9 @@ export default function CareerPathForm({
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Courses</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                {levels.length > 0
-                  ? `Showing ${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} for selected levels`
-                  : "Showing all courses — select levels above to filter"}
+                {levels.length > 0 || categories.length > 0
+                  ? `Showing ${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} matching selected filters`
+                  : "Showing all courses — select categories or levels to filter"}
               </p>
             </div>
             {courseIds.length > 0 && (

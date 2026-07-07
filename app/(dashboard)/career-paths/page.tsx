@@ -34,7 +34,7 @@ type CareerPathRow = {
   id: string
   title: string
   area: string
-  category: string
+  categories: string[]
   levels: string[]
   career_levels: string[]
   course_ids: string[]
@@ -46,7 +46,7 @@ export default async function CareerPathsPage() {
   const supabase = createServiceClient()
   const { data: paths } = await supabase
     .from("career_paths")
-    .select("id, title, area, category, levels, career_levels, course_ids, is_published, created_at")
+    .select("id, title, area, categories, levels, career_levels, course_ids, is_published, created_at")
     .order("created_at", { ascending: false })
 
   return (
@@ -99,9 +99,18 @@ export default async function CareerPathsPage() {
                   {p.area ? areaLabel(p.area) : <span className="text-gray-300">—</span>}
                 </td>
 
-                {/* Category */}
-                <td className="px-4 py-3 text-gray-600 text-xs">
-                  {p.category ? categoryLabel(p.category) : <span className="text-gray-300">—</span>}
+                {/* Categories */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {((p.categories ?? []) as string[]).length === 0
+                      ? <span className="text-gray-300 text-xs">—</span>
+                      : ((p.categories ?? []) as string[]).map(c => (
+                          <span key={c} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {categoryLabel(c)}
+                          </span>
+                        ))
+                    }
+                  </div>
                 </td>
 
                 {/* Career levels */}
