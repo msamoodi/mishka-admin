@@ -4,6 +4,14 @@ import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
 import { AREAS, CATEGORIES, LEVELS, CAREER_LEVELS } from "./constants"
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",
@@ -17,6 +25,52 @@ export type Course = {
   level: string
   category: string
   is_published: boolean
+}
+
+function SortableCourseRow({ course, index, onRemove }: { course: Course; index: number; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: course.id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        tabIndex={-1}
+        className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+        aria-label="Drag to reorder"
+      >
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+          <circle cx="3" cy="3"  r="1.5" /><circle cx="9" cy="3"  r="1.5" />
+          <circle cx="3" cy="9"  r="1.5" /><circle cx="9" cy="9"  r="1.5" />
+          <circle cx="3" cy="15" r="1.5" /><circle cx="9" cy="15" r="1.5" />
+        </svg>
+      </button>
+      <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-semibold text-gray-500 flex-shrink-0">
+        {index + 1}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{course.course_name}</p>
+        <p className="text-xs text-gray-400 capitalize mt-0.5">{course.category.replace(/-/g, " ")}</p>
+      </div>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${LEVEL_COLOR[course.level] ?? "bg-gray-100 text-gray-600"}`}>
+        {LEVELS.find(l => l.value === course.level)?.label ?? course.level}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 ml-1"
+        aria-label="Remove"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      </button>
+    </div>
+  )
 }
 
 export type CareerPath = {
@@ -48,6 +102,18 @@ export default function CareerPathForm({
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleCourseDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setCourseIds(prev => {
+      const oldIdx = prev.indexOf(active.id as string)
+      const newIdx = prev.indexOf(over.id as string)
+      return arrayMove(prev, oldIdx, newIdx)
+    })
+  }
 
   const toggleLevel = (val: string) => {
     setLevels(prev =>
@@ -247,27 +313,49 @@ export default function CareerPathForm({
           </div>
         </div>
 
-        {/* ── Courses ──────────────────────────────────────────────── */}
+        {/* ── Selected courses (ordered) ───────────────────────────── */}
+        {courseIds.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">
+              Course Order
+              <span className="ml-2 text-xs font-normal text-gray-400">{courseIds.length} selected</span>
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">Drag to set the learning sequence</p>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCourseDragEnd}>
+              <SortableContext items={courseIds} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-2">
+                  {courseIds.map((id, idx) => {
+                    const course = courses.find(c => c.id === id)
+                    if (!course) return null
+                    return (
+                      <SortableCourseRow
+                        key={id}
+                        course={course}
+                        index={idx}
+                        onRemove={() => toggleCourse(id)}
+                      />
+                    )
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
+
+        {/* ── Course picker ─────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Courses</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {levels.length > 0 || categories.length > 0
-                  ? `Showing ${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} matching selected filters`
-                  : "Showing all courses — select categories or levels to filter"}
-              </p>
-            </div>
-            {courseIds.length > 0 && (
-              <span className="text-xs font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
-                {courseIds.length} selected
-              </span>
-            )}
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">Add Courses</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {levels.length > 0 || categories.length > 0
+                ? `${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} match your filters`
+                : "Showing all courses — select categories or levels above to filter"}
+            </p>
           </div>
 
           {filteredCourses.length === 0 ? (
             <p className="px-6 py-10 text-center text-gray-400 text-sm">
-              No courses match the selected levels
+              No courses match the selected filters
             </p>
           ) : (
             <div className="divide-y divide-gray-100">
