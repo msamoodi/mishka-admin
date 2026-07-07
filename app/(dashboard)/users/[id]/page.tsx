@@ -9,7 +9,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [profileResult, authResult, userCoursesResult, allPathsResult, assignedPathsResult] = await Promise.all([
+  const [profileResult, authResult, userCoursesResult, allPathsResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase.auth.admin.getUserById(id),
     supabase
@@ -17,8 +17,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
       .select("course_id, status, progress_percent, last_accessed_at, completed_at, courses(id, course_name, slug, thumbnail_url)")
       .eq("user_id", id)
       .order("last_accessed_at", { ascending: false }),
-    supabase.from("career_paths").select("id, title").eq("is_published", true).order("created_at", { ascending: true }),
-    supabase.from("user_career_paths").select("career_path_id").eq("user_id", id),
+    supabase
+      .from("career_paths")
+      .select("id, title, area, career_levels")
+      .eq("is_published", true)
+      .order("created_at", { ascending: true }),
   ])
 
   if (!profileResult.data) notFound()
@@ -26,7 +29,18 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const authUser = authResult.data?.user ?? null
   const incompleted = (userCoursesResult.data ?? []).filter((c: { status: string }) => c.status !== "completed").length
   const completed   = (userCoursesResult.data ?? []).filter((c: { status: string }) => c.status === "completed").length
-  const assignedIds = (assignedPathsResult.data ?? []).map((r: { career_path_id: string }) => r.career_path_id)
+
+  // Compute auto-matched learning paths from user's profile
+  const interestedAreas = (profileResult.data?.interested_areas as string[] | null) ?? []
+  const careerLevel = profileResult.data?.career_level as string | null
+
+  type PathRow = { id: string; title: string; area: string; career_levels: string[] | null }
+  const autoMatchedPaths = (allPathsResult.data as PathRow[] ?? []).filter((path) => {
+    if (!interestedAreas.includes(path.area)) return false
+    const pathLevels = path.career_levels ?? []
+    if (pathLevels.length > 0 && careerLevel && !pathLevels.includes(careerLevel)) return false
+    return true
+  }).map((p) => ({ id: p.id, title: p.title }))
 
   return (
     <div className="p-8 max-w-4xl">
@@ -47,8 +61,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         userCourses={userCoursesResult.data ?? []}
         calculatedIncompleted={incompleted}
         calculatedCompleted={completed}
-        allCareerPaths={allPathsResult.data ?? []}
-        assignedCareerPathIds={assignedIds}
+        autoMatchedPaths={autoMatchedPaths}
       />
     </div>
   )
