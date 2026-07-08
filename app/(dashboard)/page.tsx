@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     profilesResult,
     careerPathsResult,
     userCoursesResult,
+    pendingPracticesResult,
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", todayStr),
@@ -37,11 +38,13 @@ export default async function DashboardPage() {
     supabase.from("profiles").select("country, interested_areas"),
     supabase.from("career_paths").select("id, title, area, category, levels, is_published"),
     supabase.from("user_courses").select("course_id, progress_percent, courses(id, course_name, category, level)"),
+    supabase.from("user_path_practices").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
   ])
 
-  const totalUsers     = totalResult.count ?? 0
-  const todayRegistered = todayRegResult.count ?? 0
-  const todayActive    = todayActiveResult.count ?? 0
+  const totalUsers        = totalResult.count ?? 0
+  const todayRegistered   = todayRegResult.count ?? 0
+  const todayActive       = todayActiveResult.count ?? 0
+  const pendingPractices  = pendingPracticesResult.count ?? 0
   const profiles       = profilesResult.data ?? []
   const careerPaths    = careerPathsResult.data ?? []
   const userCourses    = userCoursesResult.data ?? []
@@ -114,10 +117,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Engagement row ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-5">
-        <StatCard label="Total Enrollments"  value={totalEnrollments}   sub="across all courses" />
-        <StatCard label="Completion Rate"    value={completionRate}     sub="% of enrollments finished" accent="green" suffix="%" />
-        <StatCard label="Avg. Progress"      value={avgProgress}        sub="% across active learners" accent="blue" suffix="%" />
+      <div className="grid grid-cols-4 gap-5">
+        <StatCard label="Total Enrollments"      value={totalEnrollments}  sub="across all courses" />
+        <StatCard label="Completion Rate"        value={completionRate}    sub="% of enrollments finished" accent="green" suffix="%" />
+        <StatCard label="Avg. Progress"          value={avgProgress}       sub="% across active learners" accent="blue" suffix="%" />
+        <StatCard label="Practices to Review"    value={pendingPractices}  sub="awaiting admin feedback" accent={pendingPractices > 0 ? "amber" : undefined} />
       </div>
 
       {/* ── Two-column row ──────────────────────────────────────────── */}
@@ -232,14 +236,16 @@ function StatCard({
   label: string
   value: number
   sub: string
-  accent?: "blue" | "green"
+  accent?: "blue" | "green" | "amber"
   suffix?: string
 }) {
   const accentClass = accent === "blue"
     ? "text-blue-600"
     : accent === "green"
       ? "text-green-600"
-      : "text-gray-900"
+      : accent === "amber"
+        ? "text-amber-600"
+        : "text-gray-900"
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
