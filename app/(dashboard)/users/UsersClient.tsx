@@ -15,6 +15,7 @@ type User = {
   completed_courses_count: number | null
   last_sign_in_at: string | null
   last_seen_at: string | null
+  has_pending_practice: boolean
 }
 
 const RANK_COLOR: Record<string, string> = {
@@ -220,13 +221,14 @@ export default function UsersClient({ users }: { users: User[] }) {
               <SortableTh col="email"           label="Email"      sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="last_sign_in_at" label="Last Login" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="last_seen_at"    label="Last Visit" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Practice</th>
               <th className="px-4 py-3 w-16" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
                   {query ? `No users matching "${query}"` : "No users yet"}
                 </td>
               </tr>
@@ -287,6 +289,16 @@ export default function UsersClient({ users }: { users: User[] }) {
                   {/* Last Visit */}
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {fmt(u.last_seen_at)}
+                  </td>
+
+                  {/* Pending practice */}
+                  <td className="px-4 py-3">
+                    {u.has_pending_practice && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        Review
+                      </span>
+                    )}
                   </td>
 
                   {/* Action */}
