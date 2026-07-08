@@ -22,9 +22,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen flex">
       <AdminSidebar name={`${profile.first_name} ${profile.last_name}`.trim() || profile.email || "Admin"} />
       <main className="flex-1 min-w-0 bg-gray-50">
-        <div className="sticky top-0 z-30 bg-gray-50 border-b border-gray-100 flex items-center justify-between px-8 h-12">
+        <div className="sticky top-0 z-30 bg-gray-50 border-b border-gray-100 flex items-center px-8 h-12">
           <Breadcrumbs />
-          <NotificationBell />
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </div>
         {children}
       </main>
