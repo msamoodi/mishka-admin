@@ -34,7 +34,7 @@ export function Breadcrumbs() {
   if (crumbs.length <= 1) return null
 
   return (
-    <nav className="flex items-center gap-1.5 px-8 pt-5 pb-0 text-xs text-gray-400">
+    <nav className="flex items-center gap-1.5 text-xs text-gray-400">
       {crumbs.map((c, i) => {
         const isLast = i === crumbs.length - 1
         return (
