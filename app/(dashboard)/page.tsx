@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { AREAS, LEVELS } from "./career-paths/constants"
+import Link from "next/link"
 
 export const revalidate = 60
 
@@ -14,6 +15,10 @@ function levelLabel(v: string) {
 }
 function areaLabel(v: string) {
   return AREAS.find(a => a.value === v)?.label ?? v
+}
+function fmtDate(iso: string | null) {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 }
 
 export default async function DashboardPage() {
@@ -30,31 +35,61 @@ export default async function DashboardPage() {
     profilesResult,
     careerPathsResult,
     userCoursesResult,
-    pendingPracticesResult,
+    pendingPracticesCountResult,
     totalCoursesResult,
+    pendingPracticesListResult,
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", todayStr),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("last_active_at", todayStr),
-    supabase.from("profiles").select("country, interested_areas"),
+    supabase.from("profiles").select("id, first_name, last_name, email, avatar_url, country, interested_areas"),
     supabase.from("career_paths").select("id, title, area, category, levels, is_published"),
     supabase.from("user_courses").select("course_id, progress_percent, courses(id, course_name, category, level)"),
     supabase.from("user_path_practices").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
     supabase.from("courses").select("*", { count: "exact", head: true }),
+    supabase
+      .from("user_path_practices")
+      .select("id, user_id, submitted_at, path_practice_tasks(headline), career_paths(title)")
+      .eq("status", "pending_review")
+      .order("submitted_at", { ascending: false })
+      .limit(50),
   ])
 
   const totalUsers       = totalUsersResult.count ?? 0
   const todayRegistered  = todayRegResult.count ?? 0
   const todayActive      = todayActiveResult.count ?? 0
-  const pendingPractices = pendingPracticesResult.count ?? 0
+  const pendingPractices = pendingPracticesCountResult.count ?? 0
   const totalCourses     = totalCoursesResult.count ?? 0
   const profiles         = profilesResult.data ?? []
   const careerPaths      = careerPathsResult.data ?? []
   const userCourses      = userCoursesResult.data ?? []
 
+  // Profile map for practices list
+  type ProfileRow = { id: string; first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null; country: string | null; interested_areas: string[] | null }
+  const profileMap = new Map((profiles as ProfileRow[]).map(p => [p.id, p]))
+
+  // Pending practices with user info merged
+  type PendingPractice = {
+    id: string
+    user_id: string
+    submitted_at: string | null
+    path_practice_tasks: { headline: string } | null
+    career_paths: { title: string } | null
+    profile: { first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null } | null
+  }
+  type RawPractice = { id: string; user_id: string; submitted_at: string | null; path_practice_tasks: unknown; career_paths: unknown }
+  const pendingPracticesList: PendingPractice[] = ((pendingPracticesListResult.data ?? []) as RawPractice[]).map(p => ({
+    id: p.id,
+    user_id: p.user_id,
+    submitted_at: p.submitted_at,
+    path_practice_tasks: p.path_practice_tasks as { headline: string } | null,
+    career_paths: p.career_paths as { title: string } | null,
+    profile: profileMap.get(p.user_id) ?? null,
+  }))
+
   // ── Countries ──────────────────────────────────────────────────────
   const countryCounts: Record<string, number> = {}
-  for (const p of profiles) {
+  for (const p of profiles as ProfileRow[]) {
     if (p.country) countryCounts[p.country] = (countryCounts[p.country] ?? 0) + 1
   }
   const top5Countries = Object.entries(countryCounts)
@@ -65,8 +100,8 @@ export default async function DashboardPage() {
 
   // ── Career path popularity ─────────────────────────────────────────
   const areaCounts: Record<string, number> = {}
-  for (const p of profiles) {
-    for (const a of (p.interested_areas as string[] | null) ?? []) {
+  for (const p of profiles as ProfileRow[]) {
+    for (const a of p.interested_areas ?? []) {
       areaCounts[a] = (areaCounts[a] ?? 0) + 1
     }
   }
@@ -106,26 +141,22 @@ export default async function DashboardPage() {
         <p className="text-sm text-gray-500 mt-0.5">Overview of platform activity</p>
       </div>
 
-      {/* ── Two main blocks ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* ── Two main columns ────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-6 items-start">
 
-        {/* ── Courses block (left) ──────────────────────────────────── */}
+        {/* ── LEFT: Courses block ───────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-900">Courses</h2>
           </div>
-
-          {/* Course stats */}
           <div className="grid grid-cols-2 divide-x divide-y divide-gray-100">
             <MiniStat label="Total Courses"     value={totalCourses}     />
             <MiniStat label="Total Enrollments" value={totalEnrollments} />
             <MiniStat label="Completion Rate"   value={completionRate}   suffix="%" accent="green" />
             <MiniStat label="Avg. Progress"     value={avgProgress}      suffix="%" accent="blue" />
           </div>
-
-          {/* Top 5 Popular Learning Paths */}
           <div className="border-t border-gray-100">
-            <div className="px-6 py-3 bg-gray-50">
+            <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Top 5 Popular Learning Paths</p>
             </div>
             {top5Paths.length === 0 ? (
@@ -154,21 +185,19 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Users block (right) ───────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">Users</h2>
-          </div>
+        {/* ── RIGHT column: Users + Practices ──────────────────────── */}
+        <div className="flex flex-col gap-6">
 
-          {/* User stats */}
-          <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
-            <MiniStat label="Total Users"       value={totalUsers}      />
-            <MiniStat label="Registered Today"  value={todayRegistered} accent="blue" />
-            <MiniStat label="Active Today"      value={todayActive}     accent="green" />
-          </div>
-
-          {/* Top 5 Countries */}
-          <div>
+          {/* Users block */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Users</h2>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+              <MiniStat label="Total Users"      value={totalUsers}      />
+              <MiniStat label="Registered Today" value={todayRegistered} accent="blue" />
+              <MiniStat label="Active Today"     value={todayActive}     accent="green" />
+            </div>
             <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Top 5 Countries</p>
             </div>
@@ -180,10 +209,7 @@ export default async function DashboardPage() {
                   <div key={country} className="flex items-center gap-4 px-6 py-3">
                     <span className="text-sm text-gray-700 w-28 truncate capitalize">{country}</span>
                     <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gray-800"
-                        style={{ width: `${(count / maxCountryCount) * 100}%` }}
-                      />
+                      <div className="h-full rounded-full bg-gray-800" style={{ width: `${(count / maxCountryCount) * 100}%` }} />
                     </div>
                     <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
                   </div>
@@ -191,18 +217,54 @@ export default async function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Practices block */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Practices</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Submissions awaiting review</p>
+              </div>
+              {pendingPractices > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  {pendingPractices} pending
+                </span>
+              )}
+            </div>
+
+            {pendingPracticesList.length === 0 ? (
+              <p className="px-6 py-10 text-center text-gray-400 text-sm">No pending reviews</p>
+            ) : (
+              <div className="divide-y divide-gray-100 overflow-y-auto max-h-72">
+                {pendingPracticesList.map(p => {
+                  const name = [p.profile?.first_name, p.profile?.last_name].filter(Boolean).join(" ") || p.profile?.email || "Unknown user"
+                  const initial = name[0]?.toUpperCase() ?? "?"
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/users/${p.user_id}`}
+                      className="flex items-center gap-3 px-6 py-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-500 flex-shrink-0">
+                        {initial}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                          {p.career_paths?.title ?? "—"} · {p.path_practice_tasks?.headline ?? "—"}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{fmtDate(p.submitted_at)}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
-
-      {/* ── Practices to Review ─────────────────────────────────────── */}
-      {pendingPractices > 0 && (
-        <div className="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-xl px-6 py-4">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
-          <p className="text-sm font-semibold text-amber-800">
-            {pendingPractices} practice submission{pendingPractices !== 1 ? "s" : ""} awaiting your review
-          </p>
-        </div>
-      )}
 
       {/* ── Popular courses table ────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
