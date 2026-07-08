@@ -73,9 +73,9 @@ function SortableCourseRow({ course, index, onRemove }: { course: Course; index:
   )
 }
 
-export type PracticeTaskInput = { headline: string; brief: string }
+export type PracticeTaskInput = { headline: string; brief: string; link_type: string }
 
-const EMPTY_TASKS: PracticeTaskInput[] = Array.from({ length: 5 }, () => ({ headline: "", brief: "" }))
+const EMPTY_TASKS: PracticeTaskInput[] = Array.from({ length: 5 }, () => ({ headline: "", brief: "", link_type: "figma" }))
 
 const LINK_TYPE_OPTIONS = [
   { value: "figma",        label: "Figma" },
@@ -92,7 +92,6 @@ export type CareerPath = {
   career_levels: string[]
   course_ids: string[]
   is_published: boolean
-  practice_link_type?: string
 }
 
 export default function CareerPathForm({
@@ -112,10 +111,9 @@ export default function CareerPathForm({
   const [careerLevels, setCareerLevels] = useState<string[]>(initial?.career_levels ?? [])
   const [courseIds, setCourseIds] = useState<string[]>(initial?.course_ids ?? [])
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? false)
-  const [linkType, setLinkType] = useState(initial?.practice_link_type ?? "figma")
   const [tasks, setTasks] = useState<PracticeTaskInput[]>(() => {
     const base = initialTasks ?? []
-    return EMPTY_TASKS.map((_, i) => base[i] ?? { headline: "", brief: "" })
+    return EMPTY_TASKS.map((_, i) => base[i] ?? { headline: "", brief: "", link_type: "figma" })
   })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
@@ -185,7 +183,6 @@ export default function CareerPathForm({
         career_levels: careerLevels,
         course_ids: courseIds,
         is_published: isPublished,
-        practice_link_type: linkType,
       }),
     })
     const pathJson = await pathRes.json()
@@ -454,27 +451,22 @@ export default function CareerPathForm({
             One task is randomly assigned to each eligible user and never changes. Define up to 5 options.
           </p>
 
-          {/* Link type */}
-          <div className="mb-6">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
-              Submission Link Type
-            </label>
-            <select
-              value={linkType}
-              onChange={e => setLinkType(e.target.value)}
-              className="h-10 px-3 pr-8 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-            >
-              {LINK_TYPE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
           {/* 5 task slots */}
           <div className="flex flex-col gap-5">
             {tasks.map((task, i) => (
               <div key={i} className="flex flex-col gap-2 p-4 rounded-xl border border-gray-100 bg-gray-50">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Task {i + 1}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Task {i + 1}</p>
+                  <select
+                    value={task.link_type}
+                    onChange={e => updateTask(i, "link_type", e.target.value)}
+                    className="h-7 px-2 pr-7 rounded-lg border border-gray-300 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    {LINK_TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <input
                   type="text"
                   value={task.headline}

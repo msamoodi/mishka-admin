@@ -16,7 +16,7 @@ export default async function EditCareerPathPage({
   const [pathResult, coursesResult, tasksResult] = await Promise.all([
     supabase
       .from("career_paths")
-      .select("id, title, area, categories, levels, career_levels, course_ids, is_published, practice_link_type")
+      .select("id, title, area, categories, levels, career_levels, course_ids, is_published")
       .eq("id", id)
       .single(),
     supabase
@@ -25,7 +25,7 @@ export default async function EditCareerPathPage({
       .order("display_order", { ascending: true }),
     supabase
       .from("path_practice_tasks")
-      .select("headline, brief, order_index")
+      .select("headline, brief, link_type, order_index")
       .eq("career_path_id", id)
       .order("order_index", { ascending: true }),
   ])
@@ -33,7 +33,7 @@ export default async function EditCareerPathPage({
   if (!pathResult.data) notFound()
 
   const path = pathResult.data
-  const tasks = (tasksResult.data ?? []).map((t: { headline: string; brief: string; order_index: number }) => ({ headline: t.headline, brief: t.brief }))
+  const tasks = (tasksResult.data ?? []).map((t: { headline: string; brief: string; link_type: string; order_index: number }) => ({ headline: t.headline, brief: t.brief, link_type: t.link_type ?? "figma" }))
 
   return (
     <div className="p-8">
@@ -55,7 +55,6 @@ export default async function EditCareerPathPage({
           career_levels: (path.career_levels as string[]) ?? [],
           course_ids:    (path.course_ids as string[]) ?? [],
           is_published:  path.is_published ?? false,
-          practice_link_type: (path.practice_link_type as string) ?? "figma",
         }}
         courses={coursesResult.data ?? []}
         initialTasks={tasks}

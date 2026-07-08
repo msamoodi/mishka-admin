@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server"
 export type PracticeTaskInput = {
   headline: string
   brief: string
+  link_type: string
 }
 
 export async function POST(request: NextRequest) {
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
         career_path_id,
         headline: t.headline.trim(),
         brief: t.brief?.trim() ?? "",
+        link_type: t.link_type ?? "figma",
         order_index: i,
       }))
       const { error } = await supabase.from("path_practice_tasks").insert(rows)
