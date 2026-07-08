@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import UserDetailClient from "./UserDetailClient"
+import UserDetailClient, { type PracticeSubmission } from "./UserDetailClient"
 
 export const dynamic = "force-dynamic"
 
@@ -9,7 +9,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [profileResult, authResult, userCoursesResult, allPathsResult] = await Promise.all([
+  const [profileResult, authResult, userCoursesResult, allPathsResult, practicesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase.auth.admin.getUserById(id),
     supabase
@@ -22,6 +22,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
       .select("id, title, area, career_levels")
       .eq("is_published", true)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("user_path_practices")
+      .select("id, career_path_id, task_id, submitted_link, submitted_at, status, feedback, score, reviewed_at, attempt_count, path_practice_tasks(headline, brief), career_paths(title)")
+      .eq("user_id", id)
+      .order("created_at", { ascending: false }),
   ])
 
   if (!profileResult.data) notFound()
@@ -62,6 +67,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         calculatedIncompleted={incompleted}
         calculatedCompleted={completed}
         autoMatchedPaths={autoMatchedPaths}
+        practiceSubmissions={(practicesResult.data ?? []) as PracticeSubmission[]}
       />
     </div>
   )

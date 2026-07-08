@@ -51,6 +51,21 @@ type UserCourse = {
   courses: { id: string; course_name: string; slug: string; thumbnail_url?: string | null } | null
 }
 
+export type PracticeSubmission = {
+  id: string
+  career_path_id: string
+  task_id: string
+  submitted_link: string | null
+  submitted_at: string | null
+  status: string
+  feedback: string | null
+  score: number | null
+  reviewed_at: string | null
+  attempt_count: number
+  path_practice_tasks: { headline: string; brief: string } | null
+  career_paths: { title: string } | null
+}
+
 function fmt(iso: string | null | undefined) {
   if (!iso) return "—"
   const d = new Date(iso)
@@ -105,6 +120,7 @@ export default function UserDetailClient({
   calculatedCompleted,
   calculatedIncompleted,
   autoMatchedPaths,
+  practiceSubmissions,
 }: {
   profile: Profile
   authUser: AuthUser | null
@@ -112,6 +128,7 @@ export default function UserDetailClient({
   calculatedCompleted: number
   calculatedIncompleted: number
   autoMatchedPaths: AutoMatchedPath[]
+  practiceSubmissions: PracticeSubmission[]
 }) {
   const router = useRouter()
   const userId = String(profile.id)
@@ -124,6 +141,38 @@ export default function UserDetailClient({
   const [confirmAdmin, setConfirmAdmin] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
+
+  const [reviewForms, setReviewForms] = useState<Record<string, { score: string; feedback: string; submitting: boolean }>>({})
+
+  const getReviewForm = (practiceId: string) =>
+    reviewForms[practiceId] ?? { score: "", feedback: "", submitting: false }
+
+  const updateReviewForm = (practiceId: string, patch: Partial<{ score: string; feedback: string; submitting: boolean }>) => {
+    setReviewForms(prev => ({ ...prev, [practiceId]: { ...getReviewForm(practiceId), ...patch } }))
+  }
+
+  const handleReview = async (practiceId: string, verdict: "passed" | "failed") => {
+    const form = getReviewForm(practiceId)
+    const score = parseFloat(form.score)
+    if (isNaN(score) || score < 0 || score > 10) {
+      setToast({ message: "Score must be 0–10", type: "error" })
+      return
+    }
+    updateReviewForm(practiceId, { submitting: true })
+    const res = await fetch(withBasePath("/api/admin/review-practice"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ practice_id: practiceId, score, feedback: form.feedback, status: verdict }),
+    })
+    const json = await res.json()
+    updateReviewForm(practiceId, { submitting: false })
+    if (!res.ok || json.error) {
+      setToast({ message: json.error ?? "Failed to save review", type: "error" })
+    } else {
+      setToast({ message: verdict === "passed" ? "Marked as passed" : "Marked as failed", type: "success" })
+      router.refresh()
+    }
+  }
 
   const avatarDirty = selectedAvatar !== String(profile.avatar_url ?? "")
 
@@ -330,6 +379,129 @@ export default function UserDetailClient({
             </div>
           )}
         </div>
+
+        {/* ── Practice Projects ──────────────────────────────────────── */}
+        {practiceSubmissions.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">Practice Projects</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{practiceSubmissions.length} submission{practiceSubmissions.length !== 1 ? "s" : ""}</p>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {practiceSubmissions.map(sub => {
+                const isPending = sub.status === "pending_review"
+                const form = getReviewForm(sub.id)
+                const statusColors: Record<string, string> = {
+                  eligible:       "bg-gray-100 text-gray-500",
+                  pending_review: "bg-yellow-50 text-yellow-700",
+                  passed:         "bg-green-50 text-green-700",
+                  failed:         "bg-red-50 text-red-700",
+                }
+                const statusLabels: Record<string, string> = {
+                  eligible:       "Eligible",
+                  pending_review: "Pending Review",
+                  passed:         "Passed",
+                  failed:         "Failed",
+                }
+                return (
+                  <div key={sub.id} className="px-6 py-5">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {sub.career_paths?.title ?? "Unknown Path"}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Task: {sub.path_practice_tasks?.headline ?? "—"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {sub.score !== null && (
+                          <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                            {sub.score}/10
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[sub.status] ?? "bg-gray-100 text-gray-500"}`}>
+                          {statusLabels[sub.status] ?? sub.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {sub.submitted_link && (
+                      <a
+                        href={sub.submitted_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline break-all mb-2"
+                      >
+                        {sub.submitted_link}
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="flex-shrink-0">
+                          <path d="M1 9L9 1M9 1H4M9 1V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </a>
+                    )}
+
+                    <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
+                      {sub.submitted_at && <span>Submitted {fmt(sub.submitted_at)}</span>}
+                      {sub.attempt_count > 1 && <span>Attempt {sub.attempt_count}</span>}
+                      {sub.reviewed_at && <span>Reviewed {fmt(sub.reviewed_at)}</span>}
+                    </div>
+
+                    {sub.feedback && (
+                      <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2 mb-3">
+                        {sub.feedback}
+                      </p>
+                    )}
+
+                    {isPending && sub.submitted_link && (
+                      <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex flex-col gap-3">
+                        <p className="text-xs font-semibold text-yellow-800 uppercase tracking-wide">Review</p>
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-gray-600 w-20 shrink-0">Score (0–10)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={form.score}
+                            onChange={e => updateReviewForm(sub.id, { score: e.target.value })}
+                            placeholder="e.g. 7.5"
+                            className="w-24 h-8 px-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                          />
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <label className="text-xs text-gray-600 w-20 shrink-0 pt-1.5">Feedback</label>
+                          <textarea
+                            value={form.feedback}
+                            onChange={e => updateReviewForm(sub.id, { feedback: e.target.value })}
+                            placeholder="Optional feedback for the student…"
+                            rows={3}
+                            className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none bg-white"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => handleReview(sub.id, "failed")}
+                            disabled={form.submitting}
+                            className="h-8 px-4 bg-red-50 text-red-700 border border-red-200 text-xs font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                          >
+                            {form.submitting ? "…" : "Mark Failed"}
+                          </button>
+                          <button
+                            onClick={() => handleReview(sub.id, "passed")}
+                            disabled={form.submitting}
+                            className="h-8 px-4 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            {form.submitting ? "…" : "Mark Passed"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Courses ─────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

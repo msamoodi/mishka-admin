@@ -73,6 +73,16 @@ function SortableCourseRow({ course, index, onRemove }: { course: Course; index:
   )
 }
 
+export type PracticeTaskInput = { headline: string; brief: string }
+
+const EMPTY_TASKS: PracticeTaskInput[] = Array.from({ length: 5 }, () => ({ headline: "", brief: "" }))
+
+const LINK_TYPE_OPTIONS = [
+  { value: "figma",        label: "Figma" },
+  { value: "figjam",       label: "FigJam" },
+  { value: "google_drive", label: "Google Drive" },
+] as const
+
 export type CareerPath = {
   id: string
   title: string
@@ -82,14 +92,17 @@ export type CareerPath = {
   career_levels: string[]
   course_ids: string[]
   is_published: boolean
+  practice_link_type?: string
 }
 
 export default function CareerPathForm({
   initial,
   courses,
+  initialTasks,
 }: {
   initial?: CareerPath
   courses: Course[]
+  initialTasks?: PracticeTaskInput[]
 }) {
   const router = useRouter()
   const [title, setTitle] = useState(initial?.title ?? "")
@@ -99,9 +112,18 @@ export default function CareerPathForm({
   const [careerLevels, setCareerLevels] = useState<string[]>(initial?.career_levels ?? [])
   const [courseIds, setCourseIds] = useState<string[]>(initial?.course_ids ?? [])
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? false)
+  const [linkType, setLinkType] = useState(initial?.practice_link_type ?? "figma")
+  const [tasks, setTasks] = useState<PracticeTaskInput[]>(() => {
+    const base = initialTasks ?? []
+    return EMPTY_TASKS.map((_, i) => base[i] ?? { headline: "", brief: "" })
+  })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
+
+  const updateTask = (index: number, field: keyof PracticeTaskInput, value: string) => {
+    setTasks(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t))
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -151,7 +173,7 @@ export default function CareerPathForm({
       return
     }
     setSaving(true)
-    const res = await fetch(withBasePath("/api/admin/save-career-path"), {
+    const pathRes = await fetch(withBasePath("/api/admin/save-career-path"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -163,19 +185,37 @@ export default function CareerPathForm({
         career_levels: careerLevels,
         course_ids: courseIds,
         is_published: isPublished,
+        practice_link_type: linkType,
       }),
     })
-    const json = await res.json()
-    setSaving(false)
-    if (!res.ok || json.error) {
-      setToast({ message: json.error ?? "Failed to save", type: "error" })
-    } else {
-      if (!initial?.id && json.id) {
-        router.push(`/career-paths/${json.id}`)
-      } else {
-        setToast({ message: "Saved successfully", type: "success" })
-        router.refresh()
+    const pathJson = await pathRes.json()
+    if (!pathRes.ok || pathJson.error) {
+      setSaving(false)
+      setToast({ message: pathJson.error ?? "Failed to save", type: "error" })
+      return
+    }
+
+    const pathId = initial?.id ?? pathJson.id
+    if (pathId) {
+      const tasksRes = await fetch(withBasePath("/api/admin/save-practice-tasks"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ career_path_id: pathId, tasks }),
+      })
+      const tasksJson = await tasksRes.json()
+      if (!tasksRes.ok || tasksJson.error) {
+        setSaving(false)
+        setToast({ message: tasksJson.error ?? "Failed to save practice tasks", type: "error" })
+        return
       }
+    }
+
+    setSaving(false)
+    if (!initial?.id && pathJson.id) {
+      router.push(`/career-paths/${pathJson.id}`)
+    } else {
+      setToast({ message: "Saved successfully", type: "success" })
+      router.refresh()
     }
   }
 
@@ -405,6 +445,53 @@ export default function CareerPathForm({
             )}
           </div>
 
+        </div>
+
+        {/* ── Practice Project ─────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Practice Project</h2>
+          <p className="text-xs text-gray-400 mb-5">
+            One task is randomly assigned to each eligible user and never changes. Define up to 5 options.
+          </p>
+
+          {/* Link type */}
+          <div className="mb-6">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
+              Submission Link Type
+            </label>
+            <select
+              value={linkType}
+              onChange={e => setLinkType(e.target.value)}
+              className="h-10 px-3 pr-8 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            >
+              {LINK_TYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5 task slots */}
+          <div className="flex flex-col gap-5">
+            {tasks.map((task, i) => (
+              <div key={i} className="flex flex-col gap-2 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Task {i + 1}</p>
+                <input
+                  type="text"
+                  value={task.headline}
+                  onChange={e => updateTask(i, "headline", e.target.value)}
+                  placeholder="Headline (e.g. Redesign the onboarding flow)"
+                  className="w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+                <textarea
+                  value={task.brief}
+                  onChange={e => updateTask(i, "brief", e.target.value)}
+                  placeholder="Brief — describe what the student should do, deliverables, constraints…"
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none bg-white"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Save ─────────────────────────────────────────────────── */}
