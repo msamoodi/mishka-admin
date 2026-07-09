@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { withBasePath } from "@/lib/basePath"
 
 type Profile  = { id: string; first_name: string | null; last_name: string | null; email: string | null; avatar_url: string | null }
 type Task     = { id: string; headline: string; brief: string; link_type: string }
@@ -85,7 +86,7 @@ export default function PracticeDetailClient({
     if (score === null) return
     setSubmitting(true)
     try {
-      const res = await fetch("/api/admin/review-practice", {
+      const res = await fetch(withBasePath("/api/admin/review-practice"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ practice_id: practice.id, score, feedback: feedback.trim(), status: verdict }),
