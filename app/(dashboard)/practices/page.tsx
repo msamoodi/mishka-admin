@@ -122,13 +122,8 @@ export default async function PracticesPage() {
                 <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                   {/* User */}
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar url={profile?.avatar_url} name={name} />
-                      <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate text-sm">{name}</p>
-                        <p className="text-xs text-gray-400 truncate">{profile?.email ?? "—"}</p>
-                      </div>
-                    </div>
+                    <p className="font-medium text-gray-900 truncate text-sm">{name}</p>
+                    <p className="text-xs text-gray-400 truncate">{profile?.email ?? "—"}</p>
                   </td>
                   {/* Learning Path */}
                   <td className="px-4 py-3.5">
