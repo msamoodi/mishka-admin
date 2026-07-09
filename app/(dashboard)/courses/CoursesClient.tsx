@@ -13,6 +13,7 @@ type Course = {
   is_published: boolean
   display_order: number
   course_type: string
+  created_at: string | null
   lesson_count: number
   quiz_count: number
 }
@@ -37,7 +38,7 @@ const CATEGORIES = [
   { value: "data-and-ai-literacy", label: "Data & AI Literacy" },
 ]
 
-type SortCol = "course_name" | "course_type" | "category" | "level" | "lesson_count" | "is_published"
+type SortCol = "course_name" | "course_type" | "category" | "level" | "lesson_count" | "is_published" | "created_at"
 
 export default function CoursesClient({ courses }: { courses: Course[] }) {
   const [query, setQuery] = useState("")
@@ -72,6 +73,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
     let av: string | number, bv: string | number
     if (sortCol === "is_published") { av = a.is_published ? 1 : 0; bv = b.is_published ? 1 : 0 }
     else if (sortCol === "lesson_count") { av = a.lesson_count; bv = b.lesson_count }
+    else if (sortCol === "created_at") { av = a.created_at ?? ""; bv = b.created_at ?? "" }
     else { av = (a[sortCol] ?? "").toString().toLowerCase(); bv = (b[sortCol] ?? "").toString().toLowerCase() }
     return sortDir === "asc" ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0)
   }) : filtered
@@ -184,13 +186,14 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
               <SortableTh col="level"       label="Level"    sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="lesson_count" label="Lessons" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <SortableTh col="is_published" label="Status"  sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
+              <SortableTh col="created_at"  label="Created" sortCol={sortCol} sortDir={sortDir} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                   {query ? `No courses matching "${query}"` : "No courses yet. Create your first one."}
                 </td>
               </tr>
@@ -221,6 +224,9 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
                   }`}>
                     {c.is_published ? "Published" : "Draft"}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-end">

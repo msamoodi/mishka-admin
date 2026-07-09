@@ -7,7 +7,7 @@ export default async function CoursesPage() {
   const supabase = createServiceClient()
   const { data: rawCourses } = await supabase
     .from("courses")
-    .select("id, slug, course_name, category, level, is_published, display_order, course_type, lessons(count), quiz_questions(count)")
+    .select("id, slug, course_name, category, level, is_published, display_order, course_type, created_at, lessons(count), quiz_questions(count)")
     .order("display_order", { ascending: true })
 
   const courses = (rawCourses ?? []).map((c: any) => ({
@@ -19,6 +19,7 @@ export default async function CoursesPage() {
     is_published:  c.is_published,
     display_order: c.display_order,
     course_type:   c.course_type ?? "standard",
+    created_at:    c.created_at as string | null,
     lesson_count:  (c.lessons as unknown as { count: number }[])?.[0]?.count ?? 0,
     quiz_count:    (c.quiz_questions as unknown as { count: number }[])?.[0]?.count ?? 0,
   }))
