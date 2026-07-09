@@ -5,28 +5,32 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 const NAV = [
-  { label: "Dashboard",     href: "/",               icon: "📊" },
-  { label: "Courses",       href: "/courses",       icon: "📚" },
-  { label: "Categories",    href: "/categories",    icon: "🏷️" },
-  { label: "Learning Paths",  href: "/career-paths",  icon: "🗺️" },
-  { label: "Users",         href: "/users",         icon: "👥" },
-  { label: "Tickets",       href: "/tickets",       icon: "🎫" },
-  { label: "Notifications", href: "/notifications", icon: "🔔" },
-  { label: "Banner Sliders", href: "/banners",      icon: "🖼️" },
+  { label: "Dashboard",      href: "/",               icon: "📊" },
+  { label: "Courses",        href: "/courses",        icon: "📚" },
+  { label: "Categories",     href: "/categories",     icon: "🏷️" },
+  { label: "Learning Paths", href: "/career-paths",   icon: "🗺️" },
+  { label: "Users",          href: "/users",          icon: "👥" },
+  { label: "Practices",      href: "/practices",      icon: "📝" },
+  { label: "Tickets",        href: "/tickets",        icon: "🎫" },
+  { label: "Notifications",  href: "/notifications",  icon: "🔔" },
+  { label: "Banner Sliders", href: "/banners",        icon: "🖼️" },
 ]
 
 export default function AdminSidebar({ name }: { name: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const [openTickets, setOpenTickets] = useState(0)
+  const [pendingPractices, setPendingPractices] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from("tickets")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "open")
-      .then(({ count }) => setOpenTickets(count ?? 0))
+    Promise.all([
+      supabase.from("tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
+      supabase.from("user_path_practices").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+    ]).then(([tickets, practices]) => {
+      setOpenTickets(tickets.count ?? 0)
+      setPendingPractices(practices.count ?? 0)
+    })
   }, [pathname])
 
   const handleSignOut = async () => {
@@ -63,6 +67,14 @@ export default function AdminSidebar({ name }: { name: string }) {
                   style={{ background: "#FF2B4C", minWidth: 18, height: 18, padding: "0 5px" }}
                 >
                   {openTickets}
+                </span>
+              )}
+              {item.href === "/practices" && pendingPractices > 0 && (
+                <span
+                  className="inline-flex items-center justify-center rounded-full text-[10px] font-semibold leading-none bg-amber-500 text-white"
+                  style={{ minWidth: 18, height: 18, padding: "0 5px" }}
+                >
+                  {pendingPractices}
                 </span>
               )}
             </Link>
