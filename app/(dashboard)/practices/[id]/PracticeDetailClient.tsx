@@ -122,7 +122,6 @@ export default function PracticeDetailClient({
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {/* ── Header ── */}
         <div className="px-6 py-5 flex items-start gap-4 border-b border-gray-100">
-          <Avatar url={profile?.avatar_url} name={name} size={44} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-base font-semibold text-gray-900">{name}</p>
