@@ -24,14 +24,18 @@ export default function AdminSidebar({ name }: { name: string }) {
 
   useEffect(() => {
     const supabase = createClient()
-    Promise.all([
+    const fetchCounts = () => Promise.all([
       supabase.from("tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
       supabase.from("user_path_practices").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
     ]).then(([tickets, practices]) => {
       setOpenTickets(tickets.count ?? 0)
       setPendingPractices(practices.count ?? 0)
     })
-  }, [pathname])
+
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 60_000)
+    return () => clearInterval(interval)
+  }, [])  // run once, poll every 60 s instead of on every navigation
 
   const handleSignOut = async () => {
     const supabase = createClient()

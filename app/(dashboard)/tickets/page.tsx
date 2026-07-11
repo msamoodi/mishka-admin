@@ -3,15 +3,6 @@ import TicketsClient from "./TicketsClient"
 
 export const dynamic = "force-dynamic"
 
-type TicketRow = {
-  id: string
-  subject: string
-  message: string
-  status: string
-  created_at: string
-  user_id: string | null
-}
-
 type ProfileRow = {
   id: string
   first_name: string | null
@@ -19,15 +10,25 @@ type ProfileRow = {
   email: string | null
 }
 
-type Ticket = TicketRow & { profiles: ProfileRow | null }
+type Ticket = {
+  id: string
+  subject: string
+  message: string
+  status: string
+  created_at: string
+  user_id: string | null
+  profiles: ProfileRow | null
+}
 
 export default async function TicketsPage() {
   const supabase = createServiceClient()
 
-  const { data: ticketRows, error } = await supabase
+  // Single query with join — eliminates the sequential profiles fetch
+  const { data, error } = await supabase
     .from("tickets")
-    .select("id, subject, message, status, created_at, user_id")
+    .select("id, subject, message, status, created_at, user_id, profiles(id, first_name, last_name, email)")
     .order("created_at", { ascending: false })
+    .limit(500)
 
   if (error) {
     console.error("[tickets]", error)
@@ -41,24 +42,5 @@ export default async function TicketsPage() {
     )
   }
 
-  const rows: TicketRow[] = ticketRows ?? []
-  const userIds = [...new Set(rows.map((t) => t.user_id).filter(Boolean))] as string[]
-
-  let profileMap: Record<string, ProfileRow> = {}
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name, email")
-      .in("id", userIds)
-    if (profiles) {
-      profileMap = Object.fromEntries((profiles as ProfileRow[]).map((p) => [p.id, p]))
-    }
-  }
-
-  const tickets: Ticket[] = rows.map((t) => ({
-    ...t,
-    profiles: t.user_id ? (profileMap[t.user_id] ?? null) : null,
-  }))
-
-  return <TicketsClient tickets={tickets} />
+  return <TicketsClient tickets={(data ?? []) as unknown as Ticket[]} />
 }

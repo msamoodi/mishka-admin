@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { AREAS, LEVELS } from "./career-paths/constants"
 import Link from "next/link"
 
-export const revalidate = 60
+export const revalidate = 300  // 5 min — dashboard doesn't need sub-minute freshness
 
 const LEVEL_COLOR: Record<string, string> = {
   basic:        "bg-blue-50 text-blue-700",
@@ -35,7 +35,11 @@ export default async function DashboardPage() {
     inactive7to30Result,
     profilesResult,
     careerPathsResult,
-    userCoursesResult,
+    // user_courses split into lightweight count + id-only queries instead of full join
+    totalEnrollmentsResult,
+    completedEnrollmentsResult,
+    courseIdsResult,          // only course_id — no text, no join
+    avgProgressResult,        // only progress_percent — 5 k sample for approximation
     pendingPracticesCountResult,
     pendingPracticesListResult,
     totalCoursesResult,
@@ -52,15 +56,23 @@ export default async function DashboardPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", day7ago.toISOString()),
     supabase.from("profiles").select("*", { count: "exact", head: true }).lt("last_active_at", day30ago.toISOString()).not("last_active_at", "is", null),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("last_active_at", day30ago.toISOString()).lt("last_active_at", day7ago.toISOString()),
-    supabase.from("profiles").select("id, first_name, last_name, email, avatar_url, country, interested_areas"),
+    // profiles: only columns needed for country breakdown + practice profile lookup, hard-capped
+    supabase.from("profiles").select("id, first_name, last_name, email, avatar_url, country, interested_areas").limit(5000),
     supabase.from("career_paths").select("id, title, area, category, levels, is_published"),
-    supabase.from("user_courses").select("course_id, progress_percent, courses(id, course_name, category, level)"),
+    // enrollment counts via DB aggregation (no row transfer)
+    supabase.from("user_courses").select("*", { count: "exact", head: true }),
+    supabase.from("user_courses").select("*", { count: "exact", head: true }).eq("progress_percent", 100),
+    // popular courses: only course_id, no join
+    supabase.from("user_courses").select("course_id").limit(20000),
+    // avg progress: small sample, just one numeric column
+    supabase.from("user_courses").select("progress_percent").limit(5000),
     supabase.from("user_path_practices").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
     supabase.from("user_path_practices").select("id, user_id, submitted_at, path_practice_tasks(headline), career_paths(title)").eq("status", "pending_review").order("submitted_at", { ascending: false }).limit(50),
     supabase.from("courses").select("*", { count: "exact", head: true }),
     supabase.from("user_path_certificates").select("*", { count: "exact", head: true }),
     supabase.from("user_path_certificates").select("*", { count: "exact", head: true }).gte("created_at", monthStart.toISOString()),
-    supabase.from("user_path_certificates").select("career_path_id, career_path_title"),
+    // certs by path: only the two ID/title columns needed for grouping, capped
+    supabase.from("user_path_certificates").select("career_path_id, career_path_title").limit(3000),
     supabase.from("user_path_practices").select("*", { count: "exact", head: true }).eq("status", "passed"),
     supabase.from("user_path_practices").select("*", { count: "exact", head: true }).in("status", ["passed", "failed"]),
     supabase.from("user_path_practices").select("submitted_at, reviewed_at").not("reviewed_at", "is", null).limit(200),
@@ -81,9 +93,18 @@ export default async function DashboardPage() {
   const reviewedTotal    = reviewedPracticesResult.count ?? 0
   const passRate         = reviewedTotal > 0 ? Math.round((passedPractices / reviewedTotal) * 100) : 0
 
+  const totalEnrollments     = totalEnrollmentsResult.count ?? 0
+  const completedEnrollments = completedEnrollmentsResult.count ?? 0
+  const completionRate = totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0
+
+  // Avg progress from sampled rows
+  const progressRows = (avgProgressResult.data ?? []) as { progress_percent: number | null }[]
+  const avgProgress = progressRows.length > 0
+    ? Math.round(progressRows.reduce((s, r) => s + (r.progress_percent ?? 0), 0) / progressRows.length)
+    : 0
+
   const profiles    = profilesResult.data ?? []
   const careerPaths = careerPathsResult.data ?? []
-  const userCourses = userCoursesResult.data ?? []
 
   const publishedPathsCount = careerPaths.filter((cp: { is_published: boolean }) => cp.is_published).length
 
@@ -137,28 +158,31 @@ export default async function DashboardPage() {
     .map(([id, { count, title }]) => ({ id, count, title }))
     .sort((a, b) => b.count - a.count).slice(0, 5)
 
-  // ── Popular courses ────────────────────────────────────────────────
-  type CourseRow = { id: string; course_name: string; category: string; level: string }
+  // ── Popular courses — aggregate from ID-only rows, then fetch names ──
+  type CourseIdRow = { course_id: string }
   const courseCount: Record<string, number> = {}
-  const courseInfo:  Record<string, CourseRow> = {}
-  for (const uc of userCourses) {
-    const id = uc.course_id as string
-    courseCount[id] = (courseCount[id] ?? 0) + 1
-    if (uc.courses && !courseInfo[id]) courseInfo[id] = uc.courses as CourseRow
+  for (const uc of (courseIdsResult.data ?? []) as CourseIdRow[]) {
+    courseCount[uc.course_id] = (courseCount[uc.course_id] ?? 0) + 1
   }
-  const popularCourses = Object.entries(courseCount)
-    .map(([id, count]) => ({ ...(courseInfo[id] ?? { course_name: id, category: "", level: "" }), id, count }))
-    .sort((a, b) => b.count - a.count).slice(0, 10)
+  const top10Entries = Object.entries(courseCount)
+    .sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const top10Ids = top10Entries.map(([id]) => id)
 
-  // ── Course engagement ──────────────────────────────────────────────
-  type UCRow = { course_id: string; progress_percent?: number | null; courses: CourseRow | null }
-  const ucRows = userCourses as unknown as UCRow[]
-  const totalEnrollments     = ucRows.length
-  const completedEnrollments = ucRows.filter(uc => uc.progress_percent === 100).length
-  const completionRate = totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0
-  const avgProgress    = totalEnrollments > 0
-    ? Math.round(ucRows.reduce((sum, uc) => sum + (uc.progress_percent ?? 0), 0) / totalEnrollments)
-    : 0
+  type CourseDetail = { id: string; course_name: string; category: string; level: string }
+  let courseDetails: CourseDetail[] = []
+  if (top10Ids.length > 0) {
+    const { data } = await supabase
+      .from("courses")
+      .select("id, course_name, category, level")
+      .in("id", top10Ids)
+    courseDetails = (data ?? []) as CourseDetail[]
+  }
+  const detailMap = new Map(courseDetails.map(c => [c.id, c]))
+  const popularCourses = top10Entries.map(([id, count]) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, ...rest } = detailMap.get(id) ?? { course_name: id, category: "", level: "" }
+    return { id, count, ...rest }
+  })
 
   return (
     <div className="p-8 space-y-6">

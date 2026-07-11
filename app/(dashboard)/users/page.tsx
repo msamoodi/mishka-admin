@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import UsersClient from "./UsersClient"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 120  // 2-min cache — avoids re-fetching all users on every visit
 
 export default async function UsersPage() {
   const supabase = createServiceClient()
@@ -10,7 +10,8 @@ export default async function UsersPage() {
     supabase
       .from("profiles")
       .select("id, first_name, last_name, email, avatar_url, rank, completed_courses_count, last_seen_at")
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(1000),
     supabase.auth.admin.listUsers({ perPage: 1000 }),
     supabase
       .from("user_path_practices")
