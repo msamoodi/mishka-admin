@@ -41,30 +41,60 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
   const [title,    setTitle]    = useState("")
   const [author,   setAuthor]   = useState("")
   const [category, setCategory] = useState("")
-  const [uploading, setUploading] = useState(false)
+  const [uploading,  setUploading]  = useState(false)
+  // null = idle, 0-100 = upload progress, "processing" = server extracting text
+  const [progress, setProgress] = useState<number | "processing" | null>(null)
   const [error,    setError]    = useState<string | null>(null)
   const [deleting, startDelete] = useTransition()
 
   const reset = () => {
-    setFile(null); setTitle(""); setAuthor(""); setCategory(""); setError(null)
+    setFile(null); setTitle(""); setAuthor(""); setCategory("")
+    setError(null); setProgress(null)
     if (fileRef.current) fileRef.current.value = ""
   }
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file || !title.trim()) { setError("File and title are required."); return }
-    setUploading(true); setError(null)
+    setUploading(true); setError(null); setProgress(0)
+
     const form = new FormData()
     form.append("file",     file)
     form.append("title",    title.trim())
     form.append("author",   author.trim())
     form.append("category", category)
 
-    const res = await fetch(withBasePath("/api/ai/upload-book"), { method: "POST", body: form })
-    const json = await res.json()
-    setUploading(false)
-    if (!res.ok) { setError(json.error ?? "Upload failed"); return }
-    setBooks(prev => [json.book, ...prev])
-    reset(); setShowForm(false)
+    const xhr = new XMLHttpRequest()
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        setProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    }
+
+    xhr.upload.onload = () => {
+      // File fully sent — server is now extracting text
+      setProgress("processing")
+    }
+
+    xhr.onload = () => {
+      setUploading(false)
+      try {
+        const json = JSON.parse(xhr.responseText)
+        if (xhr.status >= 400) { setError(json.error ?? "Upload failed"); setProgress(null); return }
+        setBooks(prev => [json.book, ...prev])
+        reset(); setShowForm(false)
+      } catch {
+        setError("Unexpected server response"); setProgress(null)
+      }
+    }
+
+    xhr.onerror = () => {
+      setUploading(false); setProgress(null)
+      setError("Network error — please try again.")
+    }
+
+    xhr.open("POST", withBasePath("/api/ai/upload-book"))
+    xhr.send(form)
   }
 
   const handleDelete = (id: string) => {
@@ -148,6 +178,32 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               </select>
             </div>
 
+            {/* Progress bar */}
+            {progress !== null && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-gray-600">
+                    {progress === "processing" ? "Extracting text from PDF…" : `Uploading… ${progress}%`}
+                  </span>
+                  {progress === "processing" && (
+                    <svg className="animate-spin w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gray-900 rounded-full transition-all duration-300"
+                    style={{ width: progress === "processing" ? "100%" : `${progress}%` }}
+                  />
+                </div>
+                {progress === "processing" && (
+                  <p className="text-xs text-gray-400 mt-1">This may take a moment for large files…</p>
+                )}
+              </div>
+            )}
+
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
@@ -155,7 +211,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               disabled={uploading || !file || !title.trim()}
               className="self-start px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
             >
-              {uploading ? "Extracting text…" : "Upload & Save"}
+              {uploading ? "Uploading…" : "Upload & Save"}
             </button>
           </div>
         </div>
