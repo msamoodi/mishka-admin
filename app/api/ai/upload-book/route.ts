@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string; numpages: number }>
+import { extractText } from "unpdf"
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData()
-    const file   = form.get("file")   as File | null
-    const title  = form.get("title")  as string | null
-    const author = form.get("author") as string | null
+    const file     = form.get("file")     as File | null
+    const title    = form.get("title")    as string | null
+    const author   = form.get("author")   as string | null
     const category = form.get("category") as string | null
 
     if (!file || !title) {
@@ -26,9 +25,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `File must be under ${MAX_MB} MB` }, { status: 400 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const parsed = await pdfParse(buffer)
-    const extractedText = parsed.text?.trim() ?? ""
+    const buffer = new Uint8Array(await file.arrayBuffer())
+    const { totalPages, text: pages } = await extractText(buffer, { mergePages: true })
+    const extractedText = (Array.isArray(pages) ? pages.join("\n") : String(pages)).trim()
 
     if (!extractedText) {
       return NextResponse.json({ error: "Could not extract text from PDF (it may be image-only)" }, { status: 422 })
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
         author:         author?.trim() || null,
         category:       category || null,
         extracted_text: extractedText,
-        page_count:     parsed.numpages ?? null,
+        page_count:     totalPages ?? null,
         file_size_kb:   Math.round(file.size / 1024),
       })
       .select("id, title, author, category, page_count, file_size_kb, created_at")
