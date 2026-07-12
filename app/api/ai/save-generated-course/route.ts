@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
+import { getOpenAI } from "@/lib/openai"
+
+export const maxDuration = 120
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
@@ -7,7 +10,7 @@ function slugify(s: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { course, category, level } = await req.json()
+    const { course, category, level, thumbnailUrl, generateAudio } = await req.json()
     const supabase = createServiceClient()
 
     // 1 — insert the course row
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
         is_published: false,
         course_type:  "standard",
         display_order: 0,
+        ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
       })
       .select("id")
       .single()
@@ -85,8 +89,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Insert all content lessons
-    await supabase.from("lessons").insert(lessonInserts)
+    // Insert all content lessons (capture IDs for audio generation)
+    const { data: insertedLessons } = await supabase.from("lessons").insert(lessonInserts).select("id")
 
     // Insert each quiz lesson + its questions sequentially (need the lesson id)
     for (const { lessonData, questions } of quizInserts) {
@@ -109,6 +113,31 @@ export async function POST(req: NextRequest) {
             order_index:   qi,
           }))
         )
+      }
+    }
+
+    // Generate TTS audio for each content lesson if requested
+    if (generateAudio && insertedLessons) {
+      const openai = getOpenAI()
+      for (let i = 0; i < insertedLessons.length; i++) {
+        const lessonId = insertedLessons[i].id
+        const l = lessons[i]
+        const text = [l.paragraph1, l.paragraph2 || ""].join(" ").trim().slice(0, 4096)
+        if (!text) continue
+        try {
+          const mp3 = await openai.audio.speech.create({ model: "tts-1", voice: "nova", input: text })
+          const buffer = Buffer.from(await mp3.arrayBuffer())
+          const storagePath = `audio/ai-generated/${courseId}/${Date.now()}-lesson-${i}.mp3`
+          const { error: upErr } = await supabase.storage
+            .from("course-media")
+            .upload(storagePath, buffer, { contentType: "audio/mpeg", upsert: true })
+          if (!upErr) {
+            const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
+            await supabase.from("lessons").update({ audio: publicUrl }).eq("id", lessonId)
+          }
+        } catch (audioErr) {
+          console.error(`[save-generated-course] audio error for lesson ${i}:`, audioErr)
+        }
       }
     }
 

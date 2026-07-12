@@ -88,11 +88,13 @@ const COURSE_JSON_SCHEMA = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { bookIds, category, level, additionalInstructions } = await req.json() as {
+    const { bookIds, category, level, additionalInstructions, generateImage, imagePrompt } = await req.json() as {
       bookIds: string[]
       category: string
       level: string
       additionalInstructions?: string
+      generateImage?: boolean
+      imagePrompt?: string
     }
 
     if (!bookIds?.length || !category || !level) {
@@ -158,7 +160,46 @@ ${bookContext}`
     if (!raw) return NextResponse.json({ error: "No response from OpenAI" }, { status: 500 })
 
     const course = JSON.parse(raw)
-    return NextResponse.json({ course, category, level })
+
+    // Optional: generate thumbnail with DALL·E 3
+    let thumbnailUrl: string | null = null
+    if (generateImage) {
+      const prompt = imagePrompt
+        ? `${imagePrompt}. Course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Square format, no text.`
+        : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
+
+      const imgResponse = await getOpenAI().images.generate({
+        model: "dall-e-3",
+        prompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+        response_format: "url",
+      })
+
+      const tempUrl = imgResponse.data?.[0]?.url
+      if (tempUrl) {
+        // Download and re-upload to Supabase for a permanent URL
+        try {
+          const imgFetch = await fetch(tempUrl)
+          const imgBuffer = Buffer.from(await imgFetch.arrayBuffer())
+          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
+          const { data: upData } = await supabase.storage
+            .from("course-media")
+            .upload(storagePath, imgBuffer, { contentType: "image/png", upsert: true })
+          if (upData) {
+            const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
+            thumbnailUrl = publicUrl
+          } else {
+            thumbnailUrl = tempUrl
+          }
+        } catch {
+          thumbnailUrl = tempUrl
+        }
+      }
+    }
+
+    return NextResponse.json({ course, category, level, thumbnailUrl })
   } catch (err) {
     console.error("[generate-course]", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

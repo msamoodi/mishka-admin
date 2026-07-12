@@ -194,7 +194,11 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [selectedBooks,   setSelectedBooks]   = useState<string[]>([])
   const [category,        setCategory]        = useState("product-design")
   const [level,           setLevel]           = useState("basic")
-  const [instructions,    setInstructions]    = useState("")
+  const [coursePrompt,    setCoursePrompt]    = useState("")
+  const [generateImage,   setGenerateImage]   = useState(false)
+  const [imagePrompt,     setImagePrompt]     = useState("")
+  const [generateAudio,   setGenerateAudio]   = useState(false)
+  const [thumbnailUrl,    setThumbnailUrl]    = useState<string | null>(null)
 
   // Step 2 — result
   const [course,    setCourse]    = useState<GeneratedCourse | null>(null)
@@ -218,11 +222,16 @@ export default function GenerateClient({ books }: { books: Book[] }) {
 
   const handleGenerate = async () => {
     if (!selectedBooks.length) { setError("Select at least one book."); return }
-    setGenerating(true); setError(null); setCourse(null)
+    setGenerating(true); setError(null); setCourse(null); setThumbnailUrl(null)
     const res = await fetch(withBasePath("/api/ai/generate-course"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookIds: selectedBooks, category, level, additionalInstructions: instructions }),
+      body: JSON.stringify({
+        bookIds: selectedBooks, category, level,
+        additionalInstructions: coursePrompt,
+        generateImage,
+        imagePrompt: generateImage ? imagePrompt : undefined,
+      }),
     })
     const json = await res.json()
     setGenerating(false)
@@ -230,6 +239,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
     setCourse(json.course)
     setGenCat(json.category)
     setGenLevel(json.level)
+    if (json.thumbnailUrl) setThumbnailUrl(json.thumbnailUrl)
   }
 
   const handleSave = async () => {
@@ -238,7 +248,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
     const res = await fetch(withBasePath("/api/ai/save-generated-course"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ course, category: genCat, level: genLevel }),
+      body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio }),
     })
     const json = await res.json()
     setSaving(false)
@@ -267,7 +277,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               disabled={saving}
               className="px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-40"
             >
-              {saving ? "Saving…" : "Save Course →"}
+              {saving ? (generateAudio ? "Saving & generating audio…" : "Saving…") : "Save Course →"}
             </button>
           </div>
         </div>
@@ -278,6 +288,12 @@ export default function GenerateClient({ books }: { books: Book[] }) {
           {/* Course meta */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 grid gap-4">
             <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Course Details</h3>
+            {thumbnailUrl && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Generated Thumbnail</label>
+                <img src={thumbnailUrl} alt="Course thumbnail" className="w-40 h-40 rounded-xl object-cover border border-gray-200" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Course Name</label>
@@ -489,16 +505,62 @@ export default function GenerateClient({ books }: { books: Book[] }) {
         )}
       </div>
 
-      {/* Additional instructions */}
+      {/* Course Prompt */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-2">4. Additional Instructions <span className="font-normal text-gray-400">(optional)</span></h2>
+        <h2 className="text-sm font-semibold text-gray-800 mb-1">4. Course Prompt <span className="font-normal text-gray-400">(optional)</span></h2>
+        <p className="text-xs text-gray-500 mb-3">Guide GPT-4o on tone, structure, and focus. The more specific, the better the result.</p>
         <textarea
-          rows={3}
-          value={instructions}
-          onChange={e => setInstructions(e.target.value)}
-          placeholder="e.g. Focus on practical exercises. Include real-world examples. Avoid theory-heavy content."
+          rows={5}
+          value={coursePrompt}
+          onChange={e => setCoursePrompt(e.target.value)}
+          placeholder="e.g. Focus on practical exercises and real-world case studies. Use a conversational, approachable tone. Include actionable takeaways in each lesson. Avoid dense theory."
           className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
         />
+      </div>
+
+      {/* Image generation */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">5. Course Thumbnail</h2>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={generateImage}
+            onChange={e => setGenerateImage(e.target.checked)}
+            className="w-4 h-4 accent-gray-900"
+          />
+          <span className="text-sm text-gray-700">Generate thumbnail with DALL·E 3</span>
+        </label>
+        {generateImage && (
+          <div className="mt-3">
+            <label className="text-xs font-medium text-gray-500 block mb-1">Image style / prompt <span className="font-normal text-gray-400">(optional)</span></label>
+            <textarea
+              rows={2}
+              value={imagePrompt}
+              onChange={e => setImagePrompt(e.target.value)}
+              placeholder="e.g. Minimalist flat illustration, soft blue tones, abstract shapes representing creativity and design"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Audio narration */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">6. Audio Narration</h2>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={generateAudio}
+            onChange={e => setGenerateAudio(e.target.checked)}
+            className="w-4 h-4 accent-gray-900"
+          />
+          <span className="text-sm text-gray-700">Generate audio narration for each lesson (TTS)</span>
+        </label>
+        {generateAudio && (
+          <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Audio is generated when saving the course. This adds 1–2 minutes to save time.
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>}
@@ -514,7 +576,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Generating with GPT-4o… (30–60 sec)
+            Generating…{generateImage ? " (60–90 sec)" : " (30–60 sec)"}
           </span>
         ) : "Generate Course →"}
       </button>
