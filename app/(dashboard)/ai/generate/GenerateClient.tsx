@@ -416,97 +416,100 @@ export default function GenerateClient({ books }: { books: Book[] }) {
 
   // ── Render: generation form ───────────────────────────────────────────────
   return (
-    <div className="grid gap-6 max-w-2xl">
-      {/* Category + Level */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 grid grid-cols-2 gap-4">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">1. Category</h2>
-          <div className="grid gap-2">
-            {CATEGORIES.map(c => (
-              <label
-                key={c.value}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors ${
-                  category === c.value
-                    ? "border-gray-900 bg-gray-50 font-medium"
-                    : "border-gray-200 hover:bg-gray-50 text-gray-600"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="category"
-                  value={c.value}
-                  checked={category === c.value}
-                  onChange={() => handleCategoryChange(c.value)}
-                  className="accent-gray-900"
-                />
-                {c.label}
-              </label>
-            ))}
+    <div className="grid gap-6 max-w-4xl">
+      {/* Top row: Category+Level (left) | Books (right) */}
+      <div className="grid grid-cols-2 gap-6 items-start">
+        {/* Category + Level */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 grid grid-cols-2 gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 mb-3">1. Category</h2>
+            <div className="grid gap-2">
+              {CATEGORIES.map(c => (
+                <label
+                  key={c.value}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors ${
+                    category === c.value
+                      ? "border-gray-900 bg-gray-50 font-medium"
+                      : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="category"
+                    value={c.value}
+                    checked={category === c.value}
+                    onChange={() => handleCategoryChange(c.value)}
+                    className="accent-gray-900"
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 mb-3">2. Level</h2>
+            <div className="grid gap-2">
+              {LEVELS.map(l => (
+                <label
+                  key={l.value}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors ${
+                    level === l.value
+                      ? "border-gray-900 bg-gray-50 font-medium"
+                      : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="level"
+                    value={l.value}
+                    checked={level === l.value}
+                    onChange={() => setLevel(l.value)}
+                    className="accent-gray-900"
+                  />
+                  {l.label}
+                </label>
+              ))}
+            </div>
           </div>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">2. Level</h2>
-          <div className="grid gap-2">
-            {LEVELS.map(l => (
-              <label
-                key={l.value}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors ${
-                  level === l.value
-                    ? "border-gray-900 bg-gray-50 font-medium"
-                    : "border-gray-200 hover:bg-gray-50 text-gray-600"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="level"
-                  value={l.value}
-                  checked={level === l.value}
-                  onChange={() => setLevel(l.value)}
-                  className="accent-gray-900"
-                />
-                {l.label}
-              </label>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Book selection — filtered by selected category */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">3. Select Source Books</h2>
-        {filteredBooks.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">
-            No books found for this category.{" "}
-            <a href="/admin/ai/books" className="text-gray-700 underline">Upload one →</a>
-          </p>
-        ) : (
-          <div className="grid gap-2">
-            {filteredBooks.map(b => (
-              <label
-                key={b.id}
-                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedBooks.includes(b.id)
-                    ? "border-gray-900 bg-gray-50"
-                    : "border-gray-200 hover:bg-gray-50"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedBooks.includes(b.id)}
-                  onChange={() => toggleBook(b.id)}
-                  className="mt-0.5 accent-gray-900"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{b.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {[b.author, b.level ? LEVELS.find(l => l.value === b.level)?.label : null]
-                      .filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-              </label>
-            ))}
-          </div>
-        )}
+        {/* Book selection — filtered by selected category */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">3. Select Source Books</h2>
+          {filteredBooks.length === 0 ? (
+            <p className="text-sm text-gray-400 py-2">
+              No books found for this category.{" "}
+              <a href="/admin/ai/books" className="text-gray-700 underline">Upload one →</a>
+            </p>
+          ) : (
+            <div className="grid gap-2">
+              {filteredBooks.map(b => (
+                <label
+                  key={b.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedBooks.includes(b.id)
+                      ? "border-gray-900 bg-gray-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBooks.includes(b.id)}
+                    onChange={() => toggleBook(b.id)}
+                    className="mt-0.5 accent-gray-900"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{b.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {[b.author, b.level ? LEVELS.find(l => l.value === b.level)?.label : null]
+                        .filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Course Prompt */}
