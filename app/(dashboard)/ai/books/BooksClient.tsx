@@ -112,8 +112,14 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
   const [phase,    setPhase]    = useState<Phase>({ type: "idle" })
   const [error,    setError]    = useState<string | null>(null)
   const [deleting, startDelete] = useTransition()
+  const [pageSize, setPageSize] = useState(20)
+  const [page,     setPage]     = useState(1)
 
   const busy = phase.type !== "idle"
+
+  const totalPages  = Math.max(1, Math.ceil(books.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginated   = books.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const reset = () => {
     setFile(null); setTitle(""); setAuthor(""); setCategory(""); setLevel("")
@@ -176,7 +182,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       })
-      setBooks(prev => prev.filter(b => b.id !== id))
+      setBooks(prev => { const next = prev.filter(b => b.id !== id); if (page > Math.ceil(next.length / pageSize)) setPage(1); return next })
       router.refresh()
     })
   }
@@ -330,7 +336,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {books.map(b => (
+              {paginated.map(b => (
                 <tr key={b.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{b.title}</td>
                   <td className="px-4 py-3 text-gray-500">{b.author ?? "—"}</td>
@@ -364,6 +370,36 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {books.length > 0 && (
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+          <div className="flex items-center gap-2">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="h-8 px-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+            >
+              {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="mr-2">
+              {`${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, books.length)}`} of {books.length}
+            </span>
+            <button onClick={() => setPage(1)} disabled={currentPage === 1}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors" aria-label="First page">«</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors" aria-label="Previous page">‹</button>
+            <span className="px-2 font-medium text-gray-700">{currentPage} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors" aria-label="Next page">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={currentPage === totalPages}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors" aria-label="Last page">»</button>
+          </div>
         </div>
       )}
     </div>
