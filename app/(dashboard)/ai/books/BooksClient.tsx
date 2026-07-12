@@ -153,25 +153,35 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
     }
 
     // Phase 2 — send text to server (just a DB insert, very fast)
+    // Cap at 300K chars to stay well under the 4MB request body limit
+    const trimmedText = extractedText.slice(0, 300_000)
+
     setPhase({ type: "saving" })
-    const res = await fetch(withBasePath("/api/ai/upload-book"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title:         title.trim(),
-        author:        author.trim() || undefined,
-        category:      category || undefined,
-        level:         level || undefined,
-        extractedText,
-        pageCount,
-        fileSizeKb:    Math.round(file.size / 1024),
-      }),
-    })
-    const json = await res.json()
-    setPhase({ type: "idle" })
-    if (!res.ok) { setError(json.error ?? "Save failed"); return }
-    setBooks(prev => [json.book, ...prev])
-    reset(); setShowForm(false)
+    try {
+      const res = await fetch(withBasePath("/api/ai/upload-book"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title:         title.trim(),
+          author:        author.trim() || undefined,
+          category:      category || undefined,
+          level:         level || undefined,
+          extractedText: trimmedText,
+          pageCount,
+          fileSizeKb:    Math.round(file.size / 1024),
+        }),
+      })
+      let json: Record<string, unknown> = {}
+      try { json = await res.json() } catch { /* non-JSON body (e.g. 413) */ }
+      setPhase({ type: "idle" })
+      if (!res.ok) { setError((json.error as string) ?? `Server error ${res.status}`); return }
+      setBooks(prev => [json.book as Book, ...prev])
+      reset(); setShowForm(false)
+    } catch (err) {
+      setPhase({ type: "idle" })
+      setError("Failed to save — check your connection and try again.")
+      console.error("[upload-book]", err)
+    }
   }
 
   const handleDelete = (id: string) => {
