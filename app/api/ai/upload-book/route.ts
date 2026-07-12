@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
-// @ts-expect-error – pdf-parse has no bundled types
-import pdfParse from "pdf-parse"
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string; numpages: number }>
 
 export const maxDuration = 60
 
