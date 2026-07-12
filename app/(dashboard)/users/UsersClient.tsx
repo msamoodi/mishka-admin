@@ -18,17 +18,21 @@ type User = {
   has_pending_practice: boolean
 }
 
-const RANK_COLOR: Record<string, string> = {
-  starter:  "bg-gray-100 text-gray-600",
-  bronze:   "bg-amber-50 text-amber-700",
-  silver:   "bg-slate-50 text-slate-600",
-  gold:     "bg-yellow-50 text-yellow-700",
-  platinum: "bg-cyan-50 text-cyan-700",
-  diamond:  "bg-blue-50 text-blue-700",
-  sapphire: "bg-indigo-50 text-indigo-700",
-  emerald:  "bg-green-50 text-green-700",
-  ruby:     "bg-red-50 text-red-700",
-  legend:   "bg-purple-50 text-purple-700",
+const LEVEL_THRESHOLDS = [0, 3, 6, 11, 19, 31, 41, 51, 66, 81]
+
+function computeLevel(completed: number | null): number {
+  const n = completed ?? 0
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (n >= LEVEL_THRESHOLDS[i]) return i + 1
+  }
+  return 1
+}
+
+function levelStyle(level: number): React.CSSProperties {
+  if (level >= 9) return { background: "linear-gradient(90deg,#b45309,#d97706)", color: "white" }
+  if (level >= 7) return { background: "linear-gradient(90deg,#5A2BAA,#7055EA)", color: "white" }
+  if (level >= 4) return { background: "linear-gradient(90deg,#1d4ed8,#3b82f6)", color: "white" }
+  return { background: "#f3f4f6", color: "#374151" }
 }
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
@@ -84,6 +88,10 @@ export default function UsersClient({ users }: { users: User[] }) {
     : users
 
   const sorted = sortCol ? [...filtered].sort((a, b) => {
+    if (sortCol === "rank") {
+      const diff = computeLevel(a.completed_courses_count) - computeLevel(b.completed_courses_count)
+      return sortDir === "asc" ? diff : -diff
+    }
     const av = (a[sortCol] ?? "").toString().toLowerCase()
     const bv = (b[sortCol] ?? "").toString().toLowerCase()
     return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
@@ -258,8 +266,8 @@ export default function UsersClient({ users }: { users: User[] }) {
 
                   {/* Rank */}
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RANK_COLOR[u.rank ?? ""] ?? "bg-gray-100 text-gray-500"}`}>
-                      {u.rank ?? "—"}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={levelStyle(computeLevel(u.completed_courses_count))}>
+                      Level {computeLevel(u.completed_courses_count)}
                     </span>
                   </td>
 

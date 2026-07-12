@@ -15,17 +15,14 @@ const AVATARS = [
   "/images/avatars/avatar-1.png",
 ]
 
-const RANK_COLOR: Record<string, string> = {
-  starter:  "bg-gray-100 text-gray-600",
-  bronze:   "bg-amber-50 text-amber-700",
-  silver:   "bg-slate-50 text-slate-600",
-  gold:     "bg-yellow-50 text-yellow-700",
-  platinum: "bg-cyan-50 text-cyan-700",
-  diamond:  "bg-blue-50 text-blue-700",
-  sapphire: "bg-indigo-50 text-indigo-700",
-  emerald:  "bg-green-50 text-green-700",
-  ruby:     "bg-red-50 text-red-700",
-  legend:   "bg-purple-50 text-purple-700",
+const LEVEL_THRESHOLDS = [0, 3, 6, 11, 19, 31, 41, 51, 66, 81]
+
+function computeLevel(completed: number | null): number {
+  const n = completed ?? 0
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (n >= LEVEL_THRESHOLDS[i]) return i + 1
+  }
+  return 1
 }
 
 type Profile = Record<string, unknown>
@@ -239,8 +236,8 @@ export default function UserDetailClient({
             <div>
               <h2 className="text-base font-semibold text-gray-900">{String(displayName)}</h2>
               <p className="text-sm text-gray-500">{String(profile.email ?? authUser?.email ?? "—")}</p>
-              <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RANK_COLOR[String(profile.rank ?? "")] ?? "bg-gray-100 text-gray-500"}`}>
-                {String(profile.rank ?? "—")}
+              <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
+                Level {computeLevel(profile.completed_courses_count as number | null)}
               </span>
               {isAdmin && (
                 <span className="mt-2 ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
@@ -345,7 +342,7 @@ export default function UserDetailClient({
             { label: "Completed Courses",   value: String(profile.completed_courses_count ?? calculatedCompleted) },
             { label: "In-Progress Courses", value: String(calculatedIncompleted) },
             { label: "Certificates",        value: String(pathCertificates.length) },
-            { label: "Rank",                value: str(profile.rank) ?? "—" },
+            { label: "Level",               value: `Level ${computeLevel(profile.completed_courses_count as number | null)}` },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">{label}</p>
