@@ -30,71 +30,103 @@ function fmt(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 }
 
+type Phase =
+  | { type: "idle" }
+  | { type: "extracting"; page: number; total: number }
+  | { type: "saving" }
+
+async function extractPdfText(
+  file: File,
+  onProgress: (page: number, total: number) => void
+): Promise<{ text: string; pageCount: number }> {
+  const pdfjsLib = await import("pdfjs-dist")
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+  const arrayBuffer = await file.arrayBuffer()
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  const pageCount = pdf.numPages
+  const pages: string[] = []
+
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ")
+    pages.push(pageText)
+    onProgress(i, pageCount)
+  }
+
+  return { text: pages.join("\n"), pageCount }
+}
+
 export default function BooksClient({ books: initial }: { books: Book[] }) {
   const router = useRouter()
   const [books, setBooks] = useState<Book[]>(initial)
   const [showForm, setShowForm] = useState(false)
 
-  // Upload form state
   const fileRef = useRef<HTMLInputElement>(null)
   const [file,     setFile]     = useState<File | null>(null)
   const [title,    setTitle]    = useState("")
   const [author,   setAuthor]   = useState("")
   const [category, setCategory] = useState("")
-  const [uploading,  setUploading]  = useState(false)
-  // null = idle, 0-100 = upload progress, "processing" = server extracting text
-  const [progress, setProgress] = useState<number | "processing" | null>(null)
+  const [phase,    setPhase]    = useState<Phase>({ type: "idle" })
   const [error,    setError]    = useState<string | null>(null)
   const [deleting, startDelete] = useTransition()
 
+  const busy = phase.type !== "idle"
+
   const reset = () => {
     setFile(null); setTitle(""); setAuthor(""); setCategory("")
-    setError(null); setProgress(null)
+    setError(null); setPhase({ type: "idle" })
     if (fileRef.current) fileRef.current.value = ""
   }
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file || !title.trim()) { setError("File and title are required."); return }
-    setUploading(true); setError(null); setProgress(0)
+    setError(null)
 
-    const form = new FormData()
-    form.append("file",     file)
-    form.append("title",    title.trim())
-    form.append("author",   author.trim())
-    form.append("category", category)
-
-    const xhr = new XMLHttpRequest()
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setProgress(Math.round((e.loaded / e.total) * 100))
-      }
+    // Phase 1 — extract text in the browser, page by page
+    let extractedText: string
+    let pageCount: number
+    try {
+      setPhase({ type: "extracting", page: 0, total: 0 });
+      ({ text: extractedText, pageCount } = await extractPdfText(file, (page, total) => {
+        setPhase({ type: "extracting", page, total })
+      }))
+    } catch (err) {
+      setPhase({ type: "idle" })
+      setError("Could not read PDF — it may be encrypted or image-only.")
+      console.error(err)
+      return
     }
 
-    xhr.upload.onload = () => {
-      // File fully sent — server is now extracting text
-      setProgress("processing")
+    if (!extractedText.trim()) {
+      setPhase({ type: "idle" })
+      setError("No text found in PDF — it may be a scanned image.")
+      return
     }
 
-    xhr.onload = () => {
-      setUploading(false)
-      try {
-        const json = JSON.parse(xhr.responseText)
-        if (xhr.status >= 400) { setError(json.error ?? "Upload failed"); setProgress(null); return }
-        setBooks(prev => [json.book, ...prev])
-        reset(); setShowForm(false)
-      } catch {
-        setError("Unexpected server response"); setProgress(null)
-      }
-    }
-
-    xhr.onerror = () => {
-      setUploading(false); setProgress(null)
-      setError("Network error — please try again.")
-    }
-
-    xhr.open("POST", withBasePath("/api/ai/upload-book"))
-    xhr.send(form)
+    // Phase 2 — send text to server (just a DB insert, very fast)
+    setPhase({ type: "saving" })
+    const res = await fetch(withBasePath("/api/ai/upload-book"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title:         title.trim(),
+        author:        author.trim() || undefined,
+        category:      category || undefined,
+        extractedText,
+        pageCount,
+        fileSizeKb:    Math.round(file.size / 1024),
+      }),
+    })
+    const json = await res.json()
+    setPhase({ type: "idle" })
+    if (!res.ok) { setError(json.error ?? "Save failed"); return }
+    setBooks(prev => [json.book, ...prev])
+    reset(); setShowForm(false)
   }
 
   const handleDelete = (id: string) => {
@@ -109,6 +141,21 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
       router.refresh()
     })
   }
+
+  // Progress bar helpers
+  const progressPercent =
+    phase.type === "extracting" && phase.total > 0
+      ? Math.round((phase.page / phase.total) * 100)
+      : phase.type === "saving" ? 100 : 0
+
+  const progressLabel =
+    phase.type === "extracting"
+      ? phase.total === 0
+        ? "Reading PDF…"
+        : `Extracting page ${phase.page} of ${phase.total} (${Math.round((phase.page / phase.total) * 100)}%)`
+      : phase.type === "saving"
+      ? "Saving to database…"
+      : ""
 
   return (
     <div>
@@ -141,9 +188,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
                 }}
                 className="block w-full text-sm text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300"
               />
-              {file && (
-                <p className="text-xs text-gray-400 mt-1">{(file.size / 1024).toFixed(0)} KB</p>
-              )}
+              {file && <p className="text-xs text-gray-400 mt-1">{(file.size / 1024).toFixed(0)} KB</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -178,14 +223,12 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               </select>
             </div>
 
-            {/* Progress bar */}
-            {progress !== null && (
+            {/* Progress */}
+            {busy && (
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-gray-600">
-                    {progress === "processing" ? "Extracting text from PDF…" : `Uploading… ${progress}%`}
-                  </span>
-                  {progress === "processing" && (
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium text-gray-700">{progressLabel}</span>
+                  {phase.type === "saving" && (
                     <svg className="animate-spin w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -194,13 +237,10 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
                 </div>
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gray-900 rounded-full transition-all duration-300"
-                    style={{ width: progress === "processing" ? "100%" : `${progress}%` }}
+                    className="h-full bg-gray-900 rounded-full transition-all duration-150"
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                {progress === "processing" && (
-                  <p className="text-xs text-gray-400 mt-1">This may take a moment for large files…</p>
-                )}
               </div>
             )}
 
@@ -208,10 +248,10 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
 
             <button
               onClick={handleUpload}
-              disabled={uploading || !file || !title.trim()}
+              disabled={busy || !file || !title.trim()}
               className="self-start px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
             >
-              {uploading ? "Uploading…" : "Upload & Save"}
+              {busy ? "Processing…" : "Upload & Save"}
             </button>
           </div>
         </div>
@@ -250,9 +290,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
                     ) : "—"}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{b.page_count ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {b.file_size_kb ? `${b.file_size_kb} KB` : "—"}
-                  </td>
+                  <td className="px-4 py-3 text-gray-500">{b.file_size_kb ? `${b.file_size_kb} KB` : "—"}</td>
                   <td className="px-4 py-3 text-gray-500">{fmt(b.created_at)}</td>
                   <td className="px-4 py-3">
                     <button
