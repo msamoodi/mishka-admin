@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
-import openai from "@/lib/openai"
+import { getOpenAI } from "@/lib/openai"
 
 export const maxDuration = 120
 
@@ -141,7 +141,7 @@ Generate 6–10 lessons with quizzes after every 2–3 lessons.
 BOOK CONTENT:
 ${bookContext}`
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       response_format: {
         type: "json_schema",
