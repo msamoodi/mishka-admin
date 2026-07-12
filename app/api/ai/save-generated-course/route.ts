@@ -10,7 +10,7 @@ function slugify(s: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { course, category, level, thumbnailUrl, generateAudio } = await req.json()
+    const { course, category, level, thumbnailUrl, generateAudio, generateLessonImages, lessonImageStyle } = await req.json()
     const supabase = createServiceClient()
 
     // 1 — insert the course row
@@ -137,6 +137,45 @@ export async function POST(req: NextRequest) {
           }
         } catch (audioErr) {
           console.error(`[save-generated-course] audio error for lesson ${i}:`, audioErr)
+        }
+      }
+    }
+
+    // Generate cover images for each content lesson if requested
+    if (generateLessonImages && insertedLessons) {
+      const openai = getOpenAI()
+      const categoryLabel = course.course_name // use course name for context
+      for (let i = 0; i < insertedLessons.length; i++) {
+        const lessonId = insertedLessons[i].id
+        const l = lessons[i]
+        const styleClause = lessonImageStyle?.trim()
+          ? `Style: ${lessonImageStyle.trim()}.`
+          : "Style: clean flat illustration, professional, modern."
+        const prompt = `Cover image for an online course lesson titled "${l.title}" from the course "${categoryLabel}". ${styleClause} Square format, no text, no typography.`
+        try {
+          const imgRes = await openai.images.generate({
+            model: "dall-e-3",
+            prompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "standard",
+            response_format: "url",
+          })
+          const tempUrl = imgRes.data?.[0]?.url
+          if (tempUrl) {
+            const imgFetch = await fetch(tempUrl)
+            const buffer = Buffer.from(await imgFetch.arrayBuffer())
+            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.png`
+            const { error: upErr } = await supabase.storage
+              .from("course-media")
+              .upload(storagePath, buffer, { contentType: "image/png", upsert: true })
+            if (!upErr) {
+              const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
+              await supabase.from("lessons").update({ cover_image_url: publicUrl }).eq("id", lessonId)
+            }
+          }
+        } catch (imgErr) {
+          console.error(`[save-generated-course] image error for lesson ${i}:`, imgErr)
         }
       }
     }

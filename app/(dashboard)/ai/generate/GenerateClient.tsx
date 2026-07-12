@@ -197,8 +197,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [coursePrompt,    setCoursePrompt]    = useState("")
   const [generateImage,   setGenerateImage]   = useState(false)
   const [imagePrompt,     setImagePrompt]     = useState("")
-  const [generateAudio,   setGenerateAudio]   = useState(false)
-  const [thumbnailUrl,    setThumbnailUrl]    = useState<string | null>(null)
+  const [generateAudio,        setGenerateAudio]        = useState(false)
+  const [generateLessonImages, setGenerateLessonImages] = useState(false)
+  const [lessonImageStyle,     setLessonImageStyle]     = useState("")
+  const [thumbnailUrl,         setThumbnailUrl]         = useState<string | null>(null)
 
   // Step 2 — result
   const [course,    setCourse]    = useState<GeneratedCourse | null>(null)
@@ -248,7 +250,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
     const res = await fetch(withBasePath("/api/ai/save-generated-course"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio }),
+      body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio, generateLessonImages, lessonImageStyle }),
     })
     const json = await res.json()
     setSaving(false)
@@ -277,7 +279,9 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               disabled={saving}
               className="px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-40"
             >
-              {saving ? (generateAudio ? "Saving & generating audio…" : "Saving…") : "Save Course →"}
+              {saving
+                ? (generateAudio || generateLessonImages ? "Saving & generating media…" : "Saving…")
+                : "Save Course →"}
             </button>
           </div>
         </div>
@@ -560,6 +564,37 @@ export default function GenerateClient({ books }: { books: Book[] }) {
           <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             Audio is generated when saving the course. This adds 1–2 minutes to save time.
           </p>
+        )}
+      </div>
+
+      {/* Lesson images */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">7. Lesson Cover Images</h2>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={generateLessonImages}
+            onChange={e => setGenerateLessonImages(e.target.checked)}
+            className="w-4 h-4 accent-gray-900"
+          />
+          <span className="text-sm text-gray-700">Generate a cover image for each lesson (DALL·E 3)</span>
+        </label>
+        {generateLessonImages && (
+          <div className="mt-3 grid gap-2">
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Image style / prompt <span className="font-normal text-gray-400">(optional)</span></label>
+              <textarea
+                rows={2}
+                value={lessonImageStyle}
+                onChange={e => setLessonImageStyle(e.target.value)}
+                placeholder="e.g. Minimalist flat illustration, warm earth tones, simple geometric shapes — consistent visual style across all lessons"
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+              />
+            </div>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              One image per lesson generated at save time. Adds ~1–2 min and ~$0.50 for a 10-lesson course.
+            </p>
+          </div>
         )}
       </div>
 
