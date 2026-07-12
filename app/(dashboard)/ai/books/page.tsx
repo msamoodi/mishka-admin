@@ -7,7 +7,7 @@ export default async function BooksPage() {
   const supabase = createServiceClient()
   const { data: books } = await supabase
     .from("ai_books")
-    .select("id, title, author, category, page_count, file_size_kb, created_at")
+    .select("id, title, author, category, level, page_count, file_size_kb, created_at")
     .order("created_at", { ascending: false })
 
   return (

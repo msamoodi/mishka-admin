@@ -8,6 +8,7 @@ type Book = {
   title: string
   author: string | null
   category: string | null
+  level: string | null
   page_count: number | null
   file_size_kb: number | null
   created_at: string
@@ -21,6 +22,17 @@ const CATEGORIES = [
   { value: "user-research",        label: "User Research" },
   { value: "data-and-ai-literacy", label: "Data & AI Literacy" },
 ]
+
+const LEVELS = [
+  { value: "",             label: "No level" },
+  { value: "basic",        label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced",     label: "Advanced" },
+]
+
+const LEVEL_LABELS: Record<string, string> = Object.fromEntries(
+  LEVELS.filter(l => l.value).map(l => [l.value, l.label])
+)
 
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   CATEGORIES.filter(c => c.value).map(c => [c.value, c.label])
@@ -96,6 +108,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
   const [title,    setTitle]    = useState("")
   const [author,   setAuthor]   = useState("")
   const [category, setCategory] = useState("")
+  const [level,    setLevel]    = useState("")
   const [phase,    setPhase]    = useState<Phase>({ type: "idle" })
   const [error,    setError]    = useState<string | null>(null)
   const [deleting, startDelete] = useTransition()
@@ -103,7 +116,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
   const busy = phase.type !== "idle"
 
   const reset = () => {
-    setFile(null); setTitle(""); setAuthor(""); setCategory("")
+    setFile(null); setTitle(""); setAuthor(""); setCategory(""); setLevel("")
     setError(null); setPhase({ type: "idle" })
     if (fileRef.current) fileRef.current.value = ""
   }
@@ -142,6 +155,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
         title:         title.trim(),
         author:        author.trim() || undefined,
         category:      category || undefined,
+        level:         level || undefined,
         extractedText,
         pageCount,
         fileSizeKb:    Math.round(file.size / 1024),
@@ -237,15 +251,27 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Category (optional)</label>
-              <select
-                value={category}
-                onChange={e => setCategory(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-              >
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Category (optional)</label>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="w-full h-9 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Level (optional)</label>
+                <select
+                  value={level}
+                  onChange={e => setLevel(e.target.value)}
+                  className="w-full h-9 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                </select>
+              </div>
             </div>
 
             {/* Progress */}
@@ -296,6 +322,7 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Title</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Author</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Category</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Level</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Pages</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Size</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Uploaded</th>
@@ -311,6 +338,13 @@ export default function BooksClient({ books: initial }: { books: Book[] }) {
                     {b.category ? (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
                         {CATEGORY_LABELS[b.category] ?? b.category}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {b.level ? (
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
+                        {LEVEL_LABELS[b.level] ?? b.level}
                       </span>
                     ) : "—"}
                   </td>

@@ -3,10 +3,11 @@ import { createServiceClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, author, category, extractedText, pageCount, fileSizeKb } = await req.json() as {
+    const { title, author, category, level, extractedText, pageCount, fileSizeKb } = await req.json() as {
       title: string
       author?: string
       category?: string
+      level?: string
       extractedText: string
       pageCount?: number
       fileSizeKb?: number
@@ -23,11 +24,12 @@ export async function POST(req: NextRequest) {
         title:          title.trim(),
         author:         author?.trim() || null,
         category:       category || null,
+        level:          level || null,
         extracted_text: extractedText.trim(),
         page_count:     pageCount ?? null,
         file_size_kb:   fileSizeKb ?? null,
       })
-      .select("id, title, author, category, page_count, file_size_kb, created_at")
+      .select("id, title, author, category, level, page_count, file_size_kb, created_at")
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
