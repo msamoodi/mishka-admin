@@ -9,7 +9,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [profileResult, authResult, userCoursesResult, allPathsResult, practicesResult] = await Promise.all([
+  const [profileResult, authResult, userCoursesResult, allPathsResult, practicesResult, certsResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase.auth.admin.getUserById(id),
     supabase
@@ -27,6 +27,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
       .select("id, career_path_id, task_id, submitted_link, submitted_at, status, feedback, score, reviewed_at, attempt_count, path_practice_tasks(headline, brief), career_paths(title)")
       .eq("user_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("user_path_certificates")
+      .select("career_path_id, career_path_title, score, issued_at")
+      .eq("user_id", id)
+      .order("issued_at", { ascending: false }),
   ])
 
   if (!profileResult.data) notFound()
@@ -46,6 +51,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     if (pathLevels.length > 0 && careerLevel && !pathLevels.includes(careerLevel)) return false
     return true
   }).map((p) => ({ id: p.id, title: p.title }))
+
+  const pathCertificates = (certsResult.data ?? []) as { career_path_id: string; career_path_title: string; score: number; issued_at: string }[]
 
   return (
     <div className="p-8 max-w-4xl">
@@ -68,6 +75,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         calculatedCompleted={completed}
         autoMatchedPaths={autoMatchedPaths}
         practiceSubmissions={(practicesResult.data ?? []) as PracticeSubmission[]}
+        pathCertificates={pathCertificates}
       />
     </div>
   )

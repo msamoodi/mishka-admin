@@ -113,6 +113,13 @@ function str(v: unknown): string | null {
   return String(v) || null
 }
 
+type PathCertificate = {
+  career_path_id: string
+  career_path_title: string
+  score: number
+  issued_at: string
+}
+
 export default function UserDetailClient({
   profile,
   authUser,
@@ -121,6 +128,7 @@ export default function UserDetailClient({
   calculatedIncompleted,
   autoMatchedPaths,
   practiceSubmissions,
+  pathCertificates,
 }: {
   profile: Profile
   authUser: AuthUser | null
@@ -129,6 +137,7 @@ export default function UserDetailClient({
   calculatedIncompleted: number
   autoMatchedPaths: AutoMatchedPath[]
   practiceSubmissions: PracticeSubmission[]
+  pathCertificates: PathCertificate[]
 }) {
   const router = useRouter()
   const userId = String(profile.id)
@@ -335,7 +344,7 @@ export default function UserDetailClient({
           {[
             { label: "Completed Courses",   value: String(profile.completed_courses_count ?? calculatedCompleted) },
             { label: "In-Progress Courses", value: String(calculatedIncompleted) },
-            { label: "Certificates",        value: str(profile.certificates_count) ?? "—" },
+            { label: "Certificates",        value: String(pathCertificates.length) },
             { label: "Rank",                value: str(profile.rank) ?? "—" },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
@@ -353,29 +362,73 @@ export default function UserDetailClient({
           <InfoRow label="Account Created" value={fmt(authUser?.created_at)} />
         </div>
 
-        {/* ── Learning Paths (read-only, auto-matched) ─────────────────── */}
+        {/* ── Learning Paths ───────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-900">Learning Paths</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Auto-matched from user&apos;s interested areas and career level — {autoMatchedPaths.length} matched
+              Auto-matched from user&apos;s profile — {autoMatchedPaths.length} matched, {pathCertificates.length} completed
             </p>
           </div>
-          {autoMatchedPaths.length === 0 ? (
+          {autoMatchedPaths.length === 0 && pathCertificates.length === 0 ? (
             <p className="px-6 py-10 text-center text-gray-400 text-sm">
               No paths matched — user has not set interested areas or career level, or no published paths match their profile.
             </p>
           ) : (
             <div className="divide-y divide-gray-100">
-              {autoMatchedPaths.map((path) => (
-                <div key={path.id} className="flex items-center gap-4 px-6 py-4 bg-violet-50">
-                  <div className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" />
-                  <span className="text-sm font-medium text-violet-900">{path.title}</span>
-                  <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
-                    Auto-matched
-                  </span>
-                </div>
-              ))}
+              {autoMatchedPaths.map((path) => {
+                const cert = pathCertificates.find(c => c.career_path_id === path.id)
+                return (
+                  <div key={path.id} className={`flex items-center gap-4 px-6 py-4 ${cert ? "bg-green-50" : "bg-violet-50"}`}>
+                    {cert ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+                        <circle cx="12" cy="12" r="12" fill="#22c55e" />
+                        <path d="M7 12.5L10.5 16L17 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm font-medium ${cert ? "text-green-900" : "text-violet-900"}`}>{path.title}</span>
+                      {cert && (
+                        <p className="text-xs text-green-600 mt-0.5">
+                          Score {cert.score}% · {new Date(cert.issued_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {cert && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Completed
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cert ? "bg-green-100 text-green-600" : "bg-violet-100 text-violet-700"}`}>
+                        Auto-matched
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+              {/* Certificates for paths that are no longer auto-matched */}
+              {pathCertificates
+                .filter(c => !autoMatchedPaths.find(p => p.id === c.career_path_id))
+                .map(cert => (
+                  <div key={cert.career_path_id} className="flex items-center gap-4 px-6 py-4 bg-green-50">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="12" fill="#22c55e" />
+                      <path d="M7 12.5L10.5 16L17 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-green-900">{cert.career_path_title}</span>
+                      <p className="text-xs text-green-600 mt-0.5">
+                        Score {cert.score}% · {new Date(cert.issued_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 flex-shrink-0">
+                      Completed
+                    </span>
+                  </div>
+                ))}
             </div>
           )}
         </div>
