@@ -35,14 +35,39 @@ type Phase =
   | { type: "extracting"; page: number; total: number }
   | { type: "saving" }
 
+// Use stable UMD build from cdnjs — exposes window.pdfjsLib, no Turbopack issues
+const PDFJS_VERSION = "3.11.174"
+const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`
+
+type PdfJs = {
+  getDocument: (src: { data: ArrayBuffer }) => { promise: Promise<PdfDoc> }
+  GlobalWorkerOptions: { workerSrc: string }
+}
+type PdfDoc  = { numPages: number; getPage: (n: number) => Promise<PdfPage> }
+type PdfPage = { getTextContent: () => Promise<{ items: { str?: string }[] }> }
+
+async function loadPdfJs(): Promise<PdfJs> {
+  const win = window as unknown as Record<string, unknown>
+  if (win.pdfjsLib) return win.pdfjsLib as PdfJs
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script")
+    script.src = `${PDFJS_CDN}/pdf.min.js`   // UMD build exposes window.pdfjsLib
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("Failed to load PDF.js from CDN"))
+    document.head.appendChild(script)
+  })
+
+  const lib = win.pdfjsLib as PdfJs
+  lib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`
+  return lib
+}
+
 async function extractPdfText(
   file: File,
   onProgress: (page: number, total: number) => void
 ): Promise<{ text: string; pageCount: number }> {
-  const pdfjsLib = await import("pdfjs-dist")
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
-
+  const pdfjsLib = await loadPdfJs()
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   const pageCount = pdf.numPages
@@ -52,7 +77,7 @@ async function extractPdfText(
     const page = await pdf.getPage(i)
     const content = await page.getTextContent()
     const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
+      .map((item) => item.str ?? "")
       .join(" ")
     pages.push(pageText)
     onProgress(i, pageCount)
