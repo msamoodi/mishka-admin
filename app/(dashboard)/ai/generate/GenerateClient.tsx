@@ -3,7 +3,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { withBasePath } from "@/lib/basePath"
 
-type Book = { id: string; title: string; author: string | null; category: string | null }
+type Book = { id: string; title: string; author: string | null; category: string | null; level: string | null }
 
 const CATEGORIES = [
   { value: "product-design",       label: "Product Design" },
@@ -206,8 +206,15 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState<string | null>(null)
 
+  const filteredBooks = books.filter(b => !b.category || b.category === category)
+
   const toggleBook = (id: string) =>
     setSelectedBooks(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+  const handleCategoryChange = (val: string) => {
+    setCategory(val)
+    setSelectedBooks([])  // clear selection when category changes
+  }
 
   const handleGenerate = async () => {
     if (!selectedBooks.length) { setError("Select at least one book."); return }
@@ -390,38 +397,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   // ── Render: generation form ───────────────────────────────────────────────
   return (
     <div className="grid gap-6 max-w-2xl">
-      {/* Book selection */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">1. Select Source Books</h2>
-        <div className="grid gap-2">
-          {books.map(b => (
-            <label
-              key={b.id}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedBooks.includes(b.id)
-                  ? "border-gray-900 bg-gray-50"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedBooks.includes(b.id)}
-                onChange={() => toggleBook(b.id)}
-                className="mt-0.5 accent-gray-900"
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{b.title}</p>
-                {b.author && <p className="text-xs text-gray-400">{b.author}</p>}
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
-
       {/* Category + Level */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 grid grid-cols-2 gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">2. Category</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">1. Category</h2>
           <div className="grid gap-2">
             {CATEGORIES.map(c => (
               <label
@@ -437,7 +416,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
                   name="category"
                   value={c.value}
                   checked={category === c.value}
-                  onChange={() => setCategory(c.value)}
+                  onChange={() => handleCategoryChange(c.value)}
                   className="accent-gray-900"
                 />
                 {c.label}
@@ -446,7 +425,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
           </div>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">3. Level</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">2. Level</h2>
           <div className="grid gap-2">
             {LEVELS.map(l => (
               <label
@@ -470,6 +449,44 @@ export default function GenerateClient({ books }: { books: Book[] }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Book selection — filtered by selected category */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">3. Select Source Books</h2>
+        {filteredBooks.length === 0 ? (
+          <p className="text-sm text-gray-400 py-2">
+            No books found for this category.{" "}
+            <a href="/admin/ai/books" className="text-gray-700 underline">Upload one →</a>
+          </p>
+        ) : (
+          <div className="grid gap-2">
+            {filteredBooks.map(b => (
+              <label
+                key={b.id}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selectedBooks.includes(b.id)
+                    ? "border-gray-900 bg-gray-50"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedBooks.includes(b.id)}
+                  onChange={() => toggleBook(b.id)}
+                  className="mt-0.5 accent-gray-900"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{b.title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {[b.author, b.level ? LEVELS.find(l => l.value === b.level)?.label : null]
+                      .filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Additional instructions */}

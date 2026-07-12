@@ -8,7 +8,7 @@ export default async function GeneratePage() {
   const supabase = createServiceClient()
   const { data: books } = await supabase
     .from("ai_books")
-    .select("id, title, author, category")
+    .select("id, title, author, category, level")
     .order("created_at", { ascending: false })
 
   if (!books?.length) {
