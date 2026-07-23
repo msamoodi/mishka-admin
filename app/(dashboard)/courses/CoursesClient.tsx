@@ -3,6 +3,7 @@ import { useState } from "react"
 import Link from "next/link"
 import DeleteCourseButton from "./DeleteCourseButton"
 import { SortableTh } from "@/components/SortableTh"
+import { categoryLabel } from "@/lib/categoryLabel"
 
 type Course = {
   id: string
@@ -211,7 +212,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
                     {c.course_type === "video" ? "Video" : "Standard"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-600 capitalize">{c.category.replace(/-/g, " ")}</td>
+                <td className="px-4 py-3 text-gray-600">{categoryLabel(c.category)}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLOR[c.level] ?? "bg-gray-100 text-gray-600"}`}>
                     {LEVEL_LABEL[c.level] ?? c.level}

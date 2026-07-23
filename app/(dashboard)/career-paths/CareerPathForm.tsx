@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Toast, type ToastState } from "@/components/Toast"
 import { AREAS, CATEGORIES, LEVELS, CAREER_LEVELS } from "./constants"
+import { categoryLabel } from "@/lib/categoryLabel"
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -54,7 +55,7 @@ function SortableCourseRow({ course, index, onRemove }: { course: Course; index:
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{course.course_name}</p>
-        <p className="text-xs text-gray-400 capitalize mt-0.5">{course.category.replace(/-/g, " ")}</p>
+        <p className="text-xs text-gray-400 capitalize mt-0.5">{categoryLabel(course.category)}</p>
       </div>
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${LEVEL_COLOR[course.level] ?? "bg-gray-100 text-gray-600"}`}>
         {LEVELS.find(l => l.value === course.level)?.label ?? course.level}
@@ -387,7 +388,7 @@ export default function CareerPathForm({
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{c.course_name}</p>
-                        <p className="text-xs text-gray-400 capitalize mt-0.5">{c.category.replace(/-/g, " ")}</p>
+                        <p className="text-xs text-gray-400 capitalize mt-0.5">{categoryLabel(c.category)}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLOR[c.level] ?? "bg-gray-100 text-gray-600"}`}>

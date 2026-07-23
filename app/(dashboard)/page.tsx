@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { AREAS, LEVELS } from "./career-paths/constants"
+import { categoryLabel } from "@/lib/categoryLabel"
 import Link from "next/link"
 
 export const revalidate = 300  // 5 min — dashboard doesn't need sub-minute freshness
@@ -260,7 +261,7 @@ export default async function DashboardPage() {
                       <td className="px-5 py-2.5 text-xs font-bold text-gray-300">{i + 1}</td>
                       <td className="px-4 py-2.5">
                         <p className="font-medium text-gray-900 truncate max-w-[200px]">{c.course_name}</p>
-                        <p className="text-xs text-gray-400 capitalize">{c.category.replace(/-/g, " ")}</p>
+                        <p className="text-xs text-gray-400 capitalize">{categoryLabel(c.category)}</p>
                       </td>
                       <td className="px-4 py-2.5">
                         {c.level ? (
