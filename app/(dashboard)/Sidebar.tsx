@@ -14,6 +14,7 @@ const NAV = [
   { label: "Tickets",        href: "/tickets",        icon: "🎫" },
   { label: "Notifications",  href: "/notifications",  icon: "🔔" },
   { label: "Banner Sliders", href: "/banners",        icon: "🖼️" },
+  { label: "App Modals",     href: "/modals",         icon: "💬" },
   { label: "AI Books",       href: "/ai/books",       icon: "🤖" },
   { label: "AI Generate",    href: "/ai/generate",    icon: "✨" },
 ]
