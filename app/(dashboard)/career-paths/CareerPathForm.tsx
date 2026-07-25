@@ -109,7 +109,7 @@ export default function CareerPathForm({
   const [area, setArea] = useState(initial?.area ?? "")
   const [categories, setCategories] = useState<string[]>(initial?.categories ?? [])
   const [levels, setLevels] = useState<string[]>(initial?.levels ?? [])
-  const [careerLevels, setCareerLevels] = useState<string[]>(initial?.career_levels ?? [])
+  const [careerLevel, setCareerLevel] = useState<string>(initial?.career_levels?.[0] ?? "")
   const [courseIds, setCourseIds] = useState<string[]>(initial?.course_ids ?? [])
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? false)
   const [tasks, setTasks] = useState<PracticeTaskInput[]>(() => {
@@ -117,6 +117,7 @@ export default function CareerPathForm({
     return EMPTY_TASKS.map((_, i) => base[i] ?? { headline: "", brief: "", link_type: "figma" })
   })
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const closeToast = useCallback(() => setToast(null), [])
 
@@ -143,9 +144,61 @@ export default function CareerPathForm({
   }
 
   const toggleCareerLevel = (val: string) => {
-    setCareerLevels(prev =>
-      prev.includes(val) ? prev.filter(l => l !== val) : [...prev, val]
-    )
+    setCareerLevel(prev => prev === val ? "" : val)
+  }
+
+  const handleGenerate = async () => {
+    if (!area || !careerLevel) return
+    setGenerating(true)
+    try {
+      const genRes = await fetch(withBasePath("/api/admin/generate-career-path"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area, careerLevel }),
+      })
+      const genData = await genRes.json()
+      if (!genRes.ok || genData.error) {
+        setToast({ message: genData.error ?? "Generation failed", type: "error" })
+        return
+      }
+
+      setTitle(genData.title)
+      setCategories(genData.categories)
+      setLevels(genData.levels)
+      setCourseIds(genData.course_ids)
+      setTasks(EMPTY_TASKS.map((_, i) => genData.tasks[i] ?? { headline: "", brief: "", link_type: "figma" }))
+
+      const pathRes = await fetch(withBasePath("/api/admin/save-career-path"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: genData.title,
+          area,
+          categories: genData.categories,
+          levels: genData.levels,
+          career_levels: [careerLevel],
+          course_ids: genData.course_ids,
+          is_published: false,
+        }),
+      })
+      const pathJson = await pathRes.json()
+      if (!pathRes.ok || pathJson.error) {
+        setToast({ message: pathJson.error ?? "Failed to save draft", type: "error" })
+        return
+      }
+
+      await fetch(withBasePath("/api/admin/save-practice-tasks"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ career_path_id: pathJson.id, tasks: genData.tasks }),
+      })
+
+      router.push(`/career-paths/${pathJson.id}`)
+    } catch {
+      setToast({ message: "Unexpected error during generation", type: "error" })
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const toggleCourse = (id: string) => {
@@ -181,7 +234,7 @@ export default function CareerPathForm({
         area,
         categories,
         levels,
-        career_levels: careerLevels,
+        career_levels: careerLevel ? [careerLevel] : [],
         course_ids: courseIds,
         is_published: isPublished,
       }),
@@ -310,7 +363,7 @@ export default function CareerPathForm({
         {/* ── Career Level ─────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-900 mb-1">Who is this for?</h2>
-          <p className="text-xs text-gray-400 mb-4">Career level(s) this path targets — matched to user profiles</p>
+          <p className="text-xs text-gray-400 mb-4">Seniority level this path targets — matched to user profiles</p>
           <div className="flex gap-3">
             {CAREER_LEVELS.map(l => (
               <button
@@ -318,7 +371,7 @@ export default function CareerPathForm({
                 type="button"
                 onClick={() => toggleCareerLevel(l.value)}
                 className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  careerLevels.includes(l.value)
+                  careerLevel === l.value
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-200 text-gray-600 hover:border-gray-400"
                 }`}
@@ -328,6 +381,42 @@ export default function CareerPathForm({
             ))}
           </div>
         </div>
+
+        {/* ── AI Generate ──────────────────────────────────────────── */}
+        {!initial && (
+          <div className="bg-gradient-to-r from-violet-50 to-indigo-50 rounded-xl border border-violet-200 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">✨ Generate with AI</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  {!area && !careerLevel
+                    ? "Select an Area of Interest and Seniority Level above to unlock."
+                    : !area
+                    ? "Select an Area of Interest above to unlock."
+                    : !careerLevel
+                    ? "Select a Seniority Level above to unlock."
+                    : "Ready to generate. AI will pick courses, set categories, and write 5 practice tasks. Saves as draft for your review."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!area || !careerLevel || generating}
+                className="flex-shrink-0 h-9 px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {generating ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Generating…
+                  </>
+                ) : "Generate Path"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Levels ───────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
