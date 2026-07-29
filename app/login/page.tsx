@@ -3,6 +3,8 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Suspense } from "react"
+import Image from "next/image"
+import signinImg from "@/public/signin.png"
 
 function LoginForm() {
   const router = useRouter()
@@ -47,8 +49,7 @@ function LoginForm() {
   return (
     <div className="min-h-screen bg-white flex flex-col justify-end">
       <div className="flex justify-center relative z-10 mb-[-30px]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/signin.png" alt="Mishka" width={303} height={339} />
+        <Image src={signinImg} alt="Mishka" width={303} height={339} priority />
       </div>
 
       <div className="bg-gray-100 rounded-t-3xl px-6 pt-12 pb-[30vh]">
