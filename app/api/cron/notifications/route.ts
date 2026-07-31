@@ -100,11 +100,12 @@ export async function GET(req: NextRequest) {
       .from("push_subscriptions")
       .select("user_id")
 
-    const subscribedUserIds = [...new Set((subs ?? []).map((s: { user_id: string }) => s.user_id))]
+    const subRows = (subs ?? []) as { user_id: string }[]
+    const subscribedUserIds: string[] = [...new Set(subRows.map(s => s.user_id))]
 
     for (const course of newCourses) {
       await Promise.allSettled(
-        subscribedUserIds.map(userId =>
+        subscribedUserIds.map((userId: string) =>
           notifyUser(
             userId,
             "New course just dropped 🎉",
