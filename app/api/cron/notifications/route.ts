@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     .gt("last_accessed_at", daysAgo(4))
 
   if (inactive3?.length) {
-    const userIds = inactive3.map(r => r.user_id)
+    const userIds = inactive3.map((r: { user_id: string }) => r.user_id)
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, first_name")
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     .gt("last_accessed_at", daysAgo(8))
 
   if (inactive7?.length) {
-    const userIds = inactive7.map(r => r.user_id)
+    const userIds = inactive7.map((r: { user_id: string }) => r.user_id)
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, first_name")
