@@ -19,9 +19,23 @@ const SEGMENTS = [
   { value: "semi_active", label: "Semi-Active (1–3 days)" },
   { value: "not_active",  label: "Not Active (3–7 days)" },
   { value: "deactivated", label: "Deactivated (10+ days)" },
+  { value: "new_users",   label: "New Users (last 7 days)" },
 ]
 
 const SEGMENT_LABEL: Record<string, string> = Object.fromEntries(SEGMENTS.map((s) => [s.value, s.label]))
+
+function segmentDisplay(stored: string): string {
+  return stored
+    .split(",")
+    .filter(Boolean)
+    .map((s) => SEGMENT_LABEL[s] ?? s)
+    .join(", ")
+}
+
+function storedToArray(stored: string): string[] {
+  const parts = stored.split(",").filter(Boolean)
+  return parts.length > 0 ? parts : ["all"]
+}
 
 export default function NotificationsClient({ notifications: initial }: { notifications: Notification[] }) {
   const [notifications, setNotifications] = useState(initial)
@@ -29,7 +43,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
   const [description, setDescription] = useState("")
   const [ctaUrl, setCtaUrl] = useState("")
   const [ctaLabel, setCtaLabel] = useState("")
-  const [segment, setSegment] = useState("all")
+  const [segments, setSegments] = useState<string[]>(["all"])
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ ok?: boolean; sent?: number; error?: string } | null>(null)
 
@@ -41,12 +55,28 @@ export default function NotificationsClient({ notifications: initial }: { notifi
 
   const allSelected = notifications.length > 0 && selected.size === notifications.length
 
+  const toggleSegment = (value: string) => {
+    if (value === "all") {
+      setSegments(["all"])
+      return
+    }
+    setSegments((prev) => {
+      const without = prev.filter((s) => s !== "all" && s !== value)
+      if (prev.includes(value)) {
+        return without.length > 0 ? without : ["all"]
+      }
+      return [...without, value]
+    })
+  }
+
+  const segmentStr = segments.join(",")
+
   const resetForm = () => {
     setHeadline("")
     setDescription("")
     setCtaUrl("")
     setCtaLabel("")
-    setSegment("all")
+    setSegments(["all"])
     setEditingId(null)
   }
 
@@ -60,7 +90,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
       const res = await fetch(withBasePath("/api/admin/update-notification"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingId, headline, description, cta_url: ctaUrl, cta_label: ctaLabel, segment }),
+        body: JSON.stringify({ id: editingId, headline, description, cta_url: ctaUrl, cta_label: ctaLabel, segments }),
       })
       const json = await res.json()
       setResult(json)
@@ -71,7 +101,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
           description: description.trim() || null,
           cta_url: ctaUrl.trim() || null,
           cta_label: ctaLabel.trim() || null,
-          segment,
+          segment: segmentStr,
         } : n))
         resetForm()
       }
@@ -82,7 +112,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     const res = await fetch(withBasePath("/api/admin/send-notification"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline, description, cta_url: ctaUrl, cta_label: ctaLabel, segment }),
+      body: JSON.stringify({ headline, description, cta_url: ctaUrl, cta_label: ctaLabel, segments }),
     })
     const json = await res.json()
     setResult(json)
@@ -94,7 +124,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
         description: description.trim() || null,
         cta_url: ctaUrl.trim() || null,
         cta_label: ctaLabel.trim() || null,
-        segment,
+        segment: segmentStr,
         created_at: new Date().toISOString(),
         sent_count: json.sent ?? 0,
       }, ...prev])
@@ -110,7 +140,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     setDescription(n.description ?? "")
     setCtaUrl(n.cta_url ?? "")
     setCtaLabel(n.cta_label ?? "")
-    setSegment(n.segment)
+    setSegments(storedToArray(n.segment))
     setResult(null)
   }
 
@@ -120,7 +150,13 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     const res = await fetch(withBasePath("/api/admin/send-notification"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline: n.headline, description: n.description, cta_url: n.cta_url, cta_label: n.cta_label, segment: n.segment }),
+      body: JSON.stringify({
+        headline: n.headline,
+        description: n.description,
+        cta_url: n.cta_url,
+        cta_label: n.cta_label,
+        segments: storedToArray(n.segment),
+      }),
     })
     const json = await res.json()
     if (json.ok) {
@@ -173,6 +209,8 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     setDeleting(false)
   }
 
+  const segmentLabels = segments.map((s) => SEGMENT_LABEL[s] ?? s).join(", ")
+
   const preview = headline.trim() ? (
     <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Preview</p>
@@ -193,7 +231,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
         <p className="text-[10px] text-gray-300 mt-0.5">Just now</p>
       </div>
       <p className="text-[10px] text-gray-400 mt-2 text-center">
-        Sending to: <span className="font-medium text-gray-600">{SEGMENT_LABEL[segment] ?? segment}</span>
+        Sending to: <span className="font-medium text-gray-600">{segmentLabels}</span>
       </p>
     </div>
   ) : null
@@ -254,21 +292,27 @@ export default function NotificationsClient({ notifications: initial }: { notifi
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">User Segment</label>
-        <div className="relative">
-          <select
-            value={segment}
-            onChange={(e) => setSegment(e.target.value)}
-            className="w-full h-10 px-3 pr-8 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 appearance-none"
-          >
-            {SEGMENTS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-          <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" width="12" height="12" viewBox="0 0 24 24" fill="none">
-            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">User Segments</label>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SEGMENTS.map((s) => (
+            <label
+              key={s.value}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                segments.includes(s.value)
+                  ? "border-gray-900 bg-gray-50"
+                  : "border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={segments.includes(s.value)}
+                onChange={() => toggleSegment(s.value)}
+                className="rounded border-gray-300 text-gray-900 focus:ring-gray-300"
+              />
+              <span className="text-xs text-gray-700">{s.label}</span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -290,7 +334,7 @@ export default function NotificationsClient({ notifications: initial }: { notifi
     </form>
     {preview}
     </div>
-  ), [headline, description, ctaUrl, ctaLabel, segment, sending, result, editingId])
+  ), [headline, description, ctaUrl, ctaLabel, segments, sending, result, editingId])
 
   return (
     <div className="p-8">
@@ -347,8 +391,8 @@ export default function NotificationsClient({ notifications: initial }: { notifi
                         <p className="font-medium text-gray-900 truncate">{n.headline}</p>
                         {n.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{n.description}</p>}
                       </td>
-                      <td className="px-2 py-3">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{SEGMENT_LABEL[n.segment] ?? n.segment}</span>
+                      <td className="px-2 py-3 max-w-[180px]">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 truncate max-w-full">{segmentDisplay(n.segment)}</span>
                       </td>
                       <td className="px-2 py-3 text-gray-500">{n.sent_count}</td>
                       <td className="px-2 py-3 text-gray-400 text-xs">
