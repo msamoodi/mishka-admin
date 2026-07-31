@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
       .select("id, first_name")
       .in("id", userIds)
 
-    const nameMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.first_name ?? "there"]))
+    const nameMap = Object.fromEntries((profiles ?? []).map((p: { id: string; first_name: string | null }) => [p.id, p.first_name ?? "there"]))
 
     await Promise.allSettled(
-      inactive3.map(row => {
+      inactive3.map((row: { user_id: string; courses: unknown }) => {
         const c = row.courses as { course_name?: string; slug?: string } | null
         const name = nameMap[row.user_id] ?? "there"
         return notifyUser(
@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
       .select("id, first_name")
       .in("id", userIds)
 
-    const nameMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.first_name ?? "there"]))
+    const nameMap = Object.fromEntries((profiles ?? []).map((p: { id: string; first_name: string | null }) => [p.id, p.first_name ?? "there"]))
 
     await Promise.allSettled(
-      inactive7.map(row => {
+      inactive7.map((row: { user_id: string; courses: unknown }) => {
         const c = row.courses as { course_name?: string; slug?: string } | null
         const name = nameMap[row.user_id] ?? "there"
         return notifyUser(
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       .from("push_subscriptions")
       .select("user_id")
 
-    const subscribedUserIds = [...new Set((subs ?? []).map(s => s.user_id))]
+    const subscribedUserIds = [...new Set((subs ?? []).map((s: { user_id: string }) => s.user_id))]
 
     for (const course of newCourses) {
       await Promise.allSettled(
