@@ -18,6 +18,22 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  const moveItem = async (index: number, direction: -1 | 1) => {
+    const newBanners = [...banners]
+    const swapIndex = index + direction
+    if (swapIndex < 0 || swapIndex >= newBanners.length) return
+    ;[newBanners[index], newBanners[swapIndex]] = [newBanners[swapIndex], newBanners[index]]
+    setBanners(newBanners)
+    setReordering(true)
+    await fetch(withBasePath("/api/admin/reorder-banners"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: newBanners.map((b) => b.id) }),
+    })
+    setReordering(false)
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,8 +122,29 @@ export default function BannersClient({ banners: initial }: { banners: Banner[] 
             <p className="text-sm text-gray-400">No banners yet.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {banners.map((b) => (
+              {banners.map((b, index) => (
                 <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
+                  {/* Order controls */}
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => moveItem(index, -1)}
+                      disabled={index === 0 || reordering}
+                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-25 transition-colors"
+                      title="Move up"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 9V3M6 3L3 6M6 3L9 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                    <span className="text-xs text-gray-400 text-center">{index + 1}</span>
+                    <button
+                      onClick={() => moveItem(index, 1)}
+                      disabled={index === banners.length - 1 || reordering}
+                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-25 transition-colors"
+                      title="Move down"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 3V9M6 9L3 6M6 9L9 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </div>
+
                   <div className="rounded-lg overflow-hidden flex-shrink-0 border border-gray-100 bg-gray-50" style={{ width: 140, aspectRatio: "16/9" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
