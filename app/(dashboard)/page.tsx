@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { AREAS, LEVELS } from "./career-paths/constants"
 import { categoryLabel } from "@/lib/categoryLabel"
 import Link from "next/link"
+import { SendDigestButton } from "@/components/SendDigestButton"
 
 export const revalidate = 300  // 5 min — dashboard doesn't need sub-minute freshness
 
@@ -187,9 +188,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Overview of platform activity</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Overview of platform activity</p>
+        </div>
+        <SendDigestButton />
       </div>
 
       <div className="grid grid-cols-2 gap-6 items-start">
