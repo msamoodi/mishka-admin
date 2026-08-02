@@ -23,10 +23,9 @@ type Ticket = {
 export default async function TicketsPage() {
   const supabase = createServiceClient()
 
-  // Single query with join — eliminates the sequential profiles fetch
-  const { data, error } = await supabase
+  const { data: ticketRows, error } = await supabase
     .from("tickets")
-    .select("id, subject, message, status, created_at, user_id, profiles(id, first_name, last_name, email)")
+    .select("id, subject, message, status, created_at, user_id")
     .order("created_at", { ascending: false })
     .limit(500)
 
@@ -42,5 +41,22 @@ export default async function TicketsPage() {
     )
   }
 
-  return <TicketsClient tickets={(data ?? []) as unknown as Ticket[]} />
+  // Fetch profiles separately — tickets table has no FK to profiles in schema
+  type RawTicket = { id: string; subject: string; message: string; status: string; created_at: string; user_id: string | null }
+  const userIds = [...new Set((ticketRows ?? []).map((t: RawTicket) => t.user_id).filter(Boolean))] as string[]
+  const profileMap: Record<string, ProfileRow> = {}
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", userIds)
+    for (const p of (profiles ?? []) as ProfileRow[]) profileMap[p.id] = p
+  }
+
+  const tickets: Ticket[] = (ticketRows ?? []).map((t: RawTicket) => ({
+    ...t,
+    profiles: t.user_id ? (profileMap[t.user_id] ?? null) : null,
+  }))
+
+  return <TicketsClient tickets={tickets} />
 }
