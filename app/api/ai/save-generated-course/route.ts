@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
     const quizInserts: Array<{ lessonData: object; questions: unknown[] }> = []
 
     for (const item of allItems) {
-      if (item.type === "quiz") {
+      const isQuiz = item.type === "quiz" || (Array.isArray(item.questions) && item.questions.length > 0 && !item.paragraph1)
+      if (isQuiz) {
         quizInserts.push({
           lessonData: {
             course_id:    courseId,

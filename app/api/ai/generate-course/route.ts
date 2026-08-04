@@ -42,6 +42,7 @@ const COURSE_JSON_SCHEMA = {
           properties: {
             type: {
               type: "string",
+              enum: ["content", "quiz"],
               description: "content for a lesson, quiz for a quiz",
             },
             title:      { type: "string", description: "Lesson title, or quiz title (e.g. 'Quiz: Foundations')" },
