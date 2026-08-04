@@ -196,6 +196,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [generateLessonImages, setGenerateLessonImages] = useState(false)
   const [lessonImageStyle,     setLessonImageStyle]     = useState("")
   const [thumbnailUrl,         setThumbnailUrl]         = useState<string | null>(null)
+  const [deepMode,             setDeepMode]             = useState(false)
 
   // Step 2 — result
   const [course,    setCourse]    = useState<GeneratedCourse | null>(null)
@@ -220,7 +221,8 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const handleGenerate = async () => {
     if (!selectedBooks.length) { setError("Select at least one book."); return }
     setGenerating(true); setError(null); setCourse(null); setThumbnailUrl(null)
-    const res = await fetch(withBasePath("/api/ai/generate-course"), {
+    const endpoint = deepMode ? "/api/ai/generate-course-deep" : "/api/ai/generate-course"
+    const res = await fetch(withBasePath(endpoint), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -593,12 +595,45 @@ export default function GenerateClient({ books }: { books: Book[] }) {
         )}
       </div>
 
+      {/* Generation mode */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">8. Generation Mode</h2>
+        <div className="grid gap-3">
+          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${!deepMode ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:bg-gray-50"}`}>
+            <input
+              type="radio"
+              name="genMode"
+              checked={!deepMode}
+              onChange={() => setDeepMode(false)}
+              className="mt-0.5 accent-gray-900"
+            />
+            <div>
+              <p className="text-sm font-medium text-gray-900">Quick — single pass</p>
+              <p className="text-xs text-gray-500 mt-0.5">6–10 lessons generated in one API call. Fast (~30 sec), great for drafts and experimentation.</p>
+            </div>
+          </label>
+          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${deepMode ? "border-indigo-600 bg-indigo-50" : "border-gray-200 hover:bg-gray-50"}`}>
+            <input
+              type="radio"
+              name="genMode"
+              checked={deepMode}
+              onChange={() => setDeepMode(true)}
+              className="mt-0.5 accent-indigo-600"
+            />
+            <div>
+              <p className="text-sm font-medium text-gray-900">Deep — lesson by lesson <span className="ml-1.5 text-xs font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">Agent</span></p>
+              <p className="text-xs text-gray-500 mt-0.5">Plans the curriculum first, then writes each of the 10 lessons individually with full focus. Higher quality, no repetition across lessons. Takes 2–4 min.</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>}
 
       <button
         onClick={handleGenerate}
         disabled={generating || !selectedBooks.length}
-        className="px-6 py-3 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 disabled:opacity-40 transition-colors"
+        className={`px-6 py-3 text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition-colors ${deepMode ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-900 hover:bg-gray-700"}`}
       >
         {generating ? (
           <span className="flex items-center justify-center gap-2">
@@ -606,9 +641,9 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Generating…{generateImage ? " (60–90 sec)" : " (30–60 sec)"}
+            {deepMode ? "Agent generating… (2–4 min)" : `Generating…${generateImage ? " (60–90 sec)" : " (30–60 sec)"}`}
           </span>
-        ) : "Generate Course →"}
+        ) : deepMode ? "Run Agent →" : "Generate Course →"}
       </button>
     </div>
   )
