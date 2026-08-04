@@ -263,11 +263,17 @@ ${bookContext}`,
         })
         const b64 = imgResponse.data?.[0]?.b64_json
         if (b64) {
-          const webpBuffer = await sharp(Buffer.from(b64, "base64")).webp({ quality: 82 }).toBuffer()
-          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.webp`
+          const pngBuffer = Buffer.from(b64, "base64")
+          let uploadBuffer: Buffer = pngBuffer
+          let ext = "png"; let mime = "image/png"
+          try {
+            uploadBuffer = await sharp(pngBuffer).webp({ quality: 82 }).toBuffer()
+            ext = "webp"; mime = "image/webp"
+          } catch { /* fall back to PNG */ }
+          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.${ext}`
           const { data: upData } = await supabase.storage
             .from("course-media")
-            .upload(storagePath, webpBuffer, { contentType: "image/webp", upsert: true })
+            .upload(storagePath, uploadBuffer, { contentType: mime, upsert: true })
           if (upData) {
             const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
             thumbnailUrl = publicUrl

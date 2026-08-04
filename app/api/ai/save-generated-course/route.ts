@@ -130,7 +130,8 @@ export async function POST(req: NextRequest) {
           .filter(Boolean).join(" ").trim().slice(0, 4096)
         if (!text) continue
         try {
-          const mp3 = await openai.audio.speech.create({ model: "tts-1", voice: "cedar", input: text })
+          // "cedar" is not a valid tts-1 voice; use "nova" (warm, professional)
+          const mp3 = await openai.audio.speech.create({ model: "tts-1", voice: "nova", input: text })
           const buffer = Buffer.from(await mp3.arrayBuffer())
           const storagePath = `audio/ai-generated/${courseId}/${Date.now()}-lesson-${i}.mp3`
           const { error: upErr } = await supabase.storage
@@ -172,14 +173,24 @@ export async function POST(req: NextRequest) {
           })
           const b64 = imgRes.data?.[0]?.b64_json
           if (b64) {
-            const webpBuffer = await sharp(Buffer.from(b64, "base64")).webp({ quality: 82 }).toBuffer()
-            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.webp`
+            const pngBuffer = Buffer.from(b64, "base64")
+            let uploadBuffer: Buffer = pngBuffer
+            let ext = "png"
+            let mime = "image/png"
+            try {
+              uploadBuffer = await sharp(pngBuffer).webp({ quality: 82 }).toBuffer()
+              ext = "webp"; mime = "image/webp"
+            } catch {
+              // sharp unavailable or failed — fall back to PNG
+            }
+            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.${ext}`
             const { error: upErr } = await supabase.storage
               .from("course-media")
-              .upload(storagePath, webpBuffer, { contentType: "image/webp", upsert: true })
+              .upload(storagePath, uploadBuffer, { contentType: mime, upsert: true })
             if (!upErr) {
               const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
-              await supabase.from("lessons").update({ cover_image_url: publicUrl }).eq("id", lessonId)
+              // save to both columns: `image` (shown in lesson body) and `cover_image_url` (lesson card cover)
+              await supabase.from("lessons").update({ image: publicUrl, cover_image_url: publicUrl }).eq("id", lessonId)
             }
           }
         } catch (imgErr) {
