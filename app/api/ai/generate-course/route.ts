@@ -145,9 +145,8 @@ ${bookContext}`
 
     const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
-      response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt + "\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences, no explanation — raw JSON only." },
         { role: "user",   content: userPrompt },
       ],
       max_tokens: 16000,
