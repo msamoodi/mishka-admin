@@ -143,22 +143,17 @@ Generate 6–10 lessons with quizzes after every 2–3 lessons.
 BOOK CONTENT:
 ${bookContext}`
 
-    const response = await getOpenAI().responses.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
-      instructions: systemPrompt,
-      input: userPrompt,
-      text: {
-        format: {
-          type: "json_schema",
-          name: COURSE_JSON_SCHEMA.name,
-          strict: COURSE_JSON_SCHEMA.strict,
-          schema: COURSE_JSON_SCHEMA.schema,
-        },
-      },
-      max_output_tokens: 16000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userPrompt },
+      ],
+      max_tokens: 16000,
     })
 
-    const raw = response.output_text
+    const raw = response.choices[0]?.message?.content
     if (!raw) return NextResponse.json({ error: "No response from OpenAI" }, { status: 500 })
 
     const course = JSON.parse(raw)
