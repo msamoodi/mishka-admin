@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getOpenAI } from "@/lib/openai"
-import sharp from "sharp"
+
 
 export const maxDuration = 300
 
@@ -264,16 +264,10 @@ ${bookContext}`,
         const b64 = imgResponse.data?.[0]?.b64_json
         if (b64) {
           const pngBuffer = Buffer.from(b64, "base64")
-          let uploadBuffer: Buffer = pngBuffer
-          let ext = "png"; let mime = "image/png"
-          try {
-            uploadBuffer = await sharp(pngBuffer).webp({ quality: 82 }).toBuffer()
-            ext = "webp"; mime = "image/webp"
-          } catch { /* fall back to PNG */ }
-          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.${ext}`
+          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
           const { data: upData } = await supabase.storage
             .from("course-media")
-            .upload(storagePath, uploadBuffer, { contentType: mime, upsert: true })
+            .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
           if (upData) {
             const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
             thumbnailUrl = publicUrl

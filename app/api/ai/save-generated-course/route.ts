@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getOpenAI } from "@/lib/openai"
-import sharp from "sharp"
+
 
 export const maxDuration = 300
 
@@ -174,19 +174,10 @@ export async function POST(req: NextRequest) {
           const b64 = imgRes.data?.[0]?.b64_json
           if (b64) {
             const pngBuffer = Buffer.from(b64, "base64")
-            let uploadBuffer: Buffer = pngBuffer
-            let ext = "png"
-            let mime = "image/png"
-            try {
-              uploadBuffer = await sharp(pngBuffer).webp({ quality: 82 }).toBuffer()
-              ext = "webp"; mime = "image/webp"
-            } catch {
-              // sharp unavailable or failed — fall back to PNG
-            }
-            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.${ext}`
+            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.png`
             const { error: upErr } = await supabase.storage
               .from("course-media")
-              .upload(storagePath, uploadBuffer, { contentType: mime, upsert: true })
+              .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
             if (!upErr) {
               const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
               // save to both columns: `image` (shown in lesson body) and `cover_image_url` (lesson card cover)
