@@ -46,51 +46,52 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 3 — build an interleaved list: lessons + quizzes ordered by position
-    type Lesson = { title: string; paragraph1: string; paragraph2: string; callout: string }
-    type Quiz   = { title: string; after_lesson_index: number; questions: unknown[] }
+    // 3 — iterate unified items array (content lessons interleaved with quizzes)
+    type CourseItem = {
+      type: string
+      title: string
+      paragraph1: string
+      paragraph2: string
+      callout: string
+      questions: unknown[]
+    }
 
-    const lessons: Lesson[] = course.lessons ?? []
-    const quizzes: Quiz[]   = course.quizzes ?? []
-
-    // Map: after_lesson_index → quiz
-    const quizAfter = new Map<number, Quiz>()
-    for (const q of quizzes) quizAfter.set(q.after_lesson_index, q)
+    const allItems: CourseItem[] = course.items ?? []
 
     let orderIndex = 0
-    const lessonInserts = []
+    const contentInserts: object[] = []
+    const contentItems: CourseItem[] = []  // parallel to contentInserts for media generation
     const quizInserts: Array<{ lessonData: object; questions: unknown[] }> = []
 
-    for (let i = 0; i < lessons.length; i++) {
-      const l = lessons[i]
-      lessonInserts.push({
-        course_id:   courseId,
-        title:       l.title,
-        lesson_type: "content",
-        paragraph1:  l.paragraph1,
-        paragraph2:  l.paragraph2 || null,
-        callout:     l.callout    || null,
-        order_index: orderIndex++,
-        is_published: true,
-      })
-
-      const quiz = quizAfter.get(i)
-      if (quiz) {
+    for (const item of allItems) {
+      if (item.type === "quiz") {
         quizInserts.push({
           lessonData: {
-            course_id:   courseId,
-            title:       quiz.title,
-            lesson_type: "quiz",
-            order_index: orderIndex++,
+            course_id:    courseId,
+            title:        item.title,
+            lesson_type:  "quiz",
+            order_index:  orderIndex++,
             is_published: true,
           },
-          questions: quiz.questions,
+          questions: item.questions ?? [],
+        })
+      } else {
+        contentItems.push(item)
+        contentInserts.push({
+          course_id:    courseId,
+          title:        item.title,
+          lesson_type:  "content",
+          paragraph1:   item.paragraph1,
+          paragraph2:   item.paragraph2 || null,
+          callout:      item.callout    || null,
+          order_index:  orderIndex++,
+          is_published: true,
         })
       }
     }
 
-    // Insert all content lessons (capture IDs for audio generation)
-    const { data: insertedLessons } = await supabase.from("lessons").insert(lessonInserts).select("id")
+    // Insert all content lessons (capture IDs for audio/image generation)
+    const { data: insertedLessons } = await supabase.from("lessons").insert(contentInserts).select("id")
 
     // Insert each quiz lesson + its questions sequentially (need the lesson id)
     for (const { lessonData, questions } of quizInserts) {
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
       const openai = getOpenAI()
       for (let i = 0; i < insertedLessons.length; i++) {
         const lessonId = insertedLessons[i].id
-        const l = lessons[i]
+        const l = contentItems[i]
         const text = [l.paragraph1, l.paragraph2 || ""].join(" ").trim().slice(0, 4096)
         if (!text) continue
         try {
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
       const categoryLabel = course.course_name // use course name for context
       for (let i = 0; i < insertedLessons.length; i++) {
         const lessonId = insertedLessons[i].id
-        const l = lessons[i]
+        const l = contentItems[i]
         const styleClause = lessonImageStyle?.trim()
           ? `Style: ${lessonImageStyle.trim()}.`
           : "Style: clean flat illustration, professional, modern."

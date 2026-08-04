@@ -19,13 +19,6 @@ const LEVELS = [
   { value: "advanced",     label: "Advanced" },
 ]
 
-type GeneratedLesson = {
-  title: string
-  paragraph1: string
-  paragraph2: string
-  callout: string
-}
-
 type GeneratedQuestion = {
   question: string
   options: string[]
@@ -33,9 +26,12 @@ type GeneratedQuestion = {
   explanation: string
 }
 
-type GeneratedQuiz = {
+type GeneratedItem = {
+  type: "content" | "quiz"
   title: string
-  after_lesson_index: number
+  paragraph1: string
+  paragraph2: string
+  callout: string
   questions: GeneratedQuestion[]
 }
 
@@ -45,8 +41,7 @@ type GeneratedCourse = {
   tags: string[]
   time_to_read: number
   objectives: string[]
-  lessons: GeneratedLesson[]
-  quizzes: GeneratedQuiz[]
+  items: GeneratedItem[]
 }
 
 // ─── Editable lesson card ─────────────────────────────────────────────────────
@@ -54,9 +49,9 @@ type GeneratedCourse = {
 function LessonCard({
   lesson, index, onChange,
 }: {
-  lesson: GeneratedLesson
+  lesson: GeneratedItem
   index: number
-  onChange: (l: GeneratedLesson) => void
+  onChange: (l: GeneratedItem) => void
 }) {
   const [open, setOpen] = useState(index === 0)
   const TA = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
@@ -107,8 +102,8 @@ function LessonCard({
 function QuizCard({
   quiz, onChange,
 }: {
-  quiz: GeneratedQuiz
-  onChange: (q: GeneratedQuiz) => void
+  quiz: GeneratedItem
+  onChange: (q: GeneratedItem) => void
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -356,40 +351,37 @@ export default function GenerateClient({ books }: { books: Book[] }) {
           {/* Lessons & Quizzes interleaved */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-              Lessons & Quizzes ({course.lessons.length} lessons · {course.quizzes.length} quizzes)
+              Lessons & Quizzes ({course.items.filter(x => x.type === "content").length} lessons · {course.items.filter(x => x.type === "quiz").length} quizzes)
             </h3>
             <div className="grid gap-3">
               {(() => {
-                const quizAfter = new Map(course.quizzes.map(q => [q.after_lesson_index, q]))
-                const items: React.ReactNode[] = []
-                course.lessons.forEach((lesson, i) => {
-                  items.push(
-                    <LessonCard
-                      key={`lesson-${i}`}
-                      lesson={lesson}
-                      index={i}
-                      onChange={updated => {
-                        const next = [...course.lessons]; next[i] = updated
-                        setCourse({ ...course, lessons: next })
-                      }}
-                    />
-                  )
-                  const quiz = quizAfter.get(i)
-                  if (quiz) {
-                    const qi = course.quizzes.indexOf(quiz)
-                    items.push(
+                let lessonNum = 0
+                return course.items.map((item, i) => {
+                  if (item.type === "quiz") {
+                    return (
                       <QuizCard
-                        key={`quiz-${i}`}
-                        quiz={quiz}
+                        key={`item-${i}`}
+                        quiz={item}
                         onChange={updated => {
-                          const next = [...course.quizzes]; next[qi] = updated
-                          setCourse({ ...course, quizzes: next })
+                          const next = [...course.items]; next[i] = updated
+                          setCourse({ ...course, items: next })
                         }}
                       />
                     )
                   }
+                  const idx = lessonNum++
+                  return (
+                    <LessonCard
+                      key={`item-${i}`}
+                      lesson={item}
+                      index={idx}
+                      onChange={updated => {
+                        const next = [...course.items]; next[i] = updated
+                        setCourse({ ...course, items: next })
+                      }}
+                    />
+                  )
                 })
-                return items
               })()}
             </div>
           </div>

@@ -33,41 +33,28 @@ const COURSE_JSON_SCHEMA = {
         description: "3–5 learning outcomes (what the student will be able to do)",
         items: { type: "string" },
       },
-      lessons: {
+      items: {
         type: "array",
-        description: "Ordered list of content lessons",
+        description: "Ordered sequence of content lessons and quizzes, interleaved: content, quiz, content, quiz, …",
         items: {
           type: "object",
           properties: {
-            title:      { type: "string" },
-            paragraph1: { type: "string", description: "Main lesson content (2–4 paragraphs)" },
-            paragraph2: { type: "string", description: "Supporting content or examples (optional, can be empty string)" },
-            callout:    { type: "string", description: "A key insight or tip to highlight (1 sentence, can be empty string)" },
-          },
-          required: ["title", "paragraph1", "paragraph2", "callout"],
-          additionalProperties: false,
-        },
-      },
-      quizzes: {
-        type: "array",
-        description: "One quiz per 2–3 lessons, placed after the lessons it covers",
-        items: {
-          type: "object",
-          properties: {
-            title: { type: "string", description: "Quiz title, e.g. 'Quiz: Foundations'" },
-            after_lesson_index: {
-              type: "number",
-              description: "0-based index of the lesson this quiz follows",
+            type: {
+              type: "string",
+              description: "content for a lesson, quiz for a quiz",
             },
+            title:      { type: "string", description: "Lesson title, or quiz title (e.g. 'Quiz: Foundations')" },
+            paragraph1: { type: "string", description: "Main lesson content (3–5 sentences). Empty string for quiz items." },
+            paragraph2: { type: "string", description: "Supporting content or examples. Empty string for quiz items." },
+            callout:    { type: "string", description: "A key insight to highlight (1 sentence). Empty string for quiz items." },
             questions: {
               type: "array",
-              minItems: 3,
-              maxItems: 5,
+              description: "Quiz questions (3–5 items for quiz type; empty array for content type)",
               items: {
                 type: "object",
                 properties: {
                   question:      { type: "string" },
-                  options:       { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+                  options:       { type: "array", items: { type: "string" } },
                   correct_index: { type: "number", description: "0-based index of the correct option" },
                   explanation:   { type: "string", description: "Brief explanation of why the answer is correct" },
                 },
@@ -76,12 +63,12 @@ const COURSE_JSON_SCHEMA = {
               },
             },
           },
-          required: ["title", "after_lesson_index", "questions"],
+          required: ["type", "title", "paragraph1", "paragraph2", "callout", "questions"],
           additionalProperties: false,
         },
       },
     },
-    required: ["course_name", "description", "tags", "time_to_read", "objectives", "lessons", "quizzes"],
+    required: ["course_name", "description", "tags", "time_to_read", "objectives", "items"],
     additionalProperties: false,
   },
 }
@@ -134,11 +121,16 @@ Rules:
 - Lessons must be substantive: paragraph1 should be 3–5 sentences of real educational content
 - Every quiz question must be answerable from the lesson content
 - Do not include any markdown formatting (no **, no #, no -)
-- Return ONLY the JSON object`
+- Return ONLY the JSON object
+
+STRUCTURE:
+The items array must alternate: content lesson, then quiz, content lesson, then quiz, and so on.
+For CONTENT items: type="content", fill paragraph1/paragraph2/callout, questions=[]
+For QUIZ items: type="quiz", paragraph1="", paragraph2="", callout="", fill questions with 3–5 multiple-choice questions (4 options each, correct_index set)`
 
     const userPrompt = `Create a ${levelLabel}-level ${categoryLabel} course based on the following book content.
 ${additionalInstructions ? `\nAdditional instructions: ${additionalInstructions}\n` : ""}
-Generate 6–10 lessons with quizzes after every 2–3 lessons.
+Generate 6–10 content lessons, each immediately followed by a quiz. The items array must interleave them: content, quiz, content, quiz, …
 
 BOOK CONTENT:
 ${bookContext}`
