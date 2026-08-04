@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getOpenAI } from "@/lib/openai"
+import sharp from "sharp"
 
-export const maxDuration = 120
+export const maxDuration = 300
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
@@ -165,11 +166,11 @@ export async function POST(req: NextRequest) {
           })
           const b64 = imgRes.data?.[0]?.b64_json
           if (b64) {
-            const buffer = Buffer.from(b64, "base64")
-            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.png`
+            const webpBuffer = await sharp(Buffer.from(b64, "base64")).webp({ quality: 82 }).toBuffer()
+            const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.webp`
             const { error: upErr } = await supabase.storage
               .from("course-media")
-              .upload(storagePath, buffer, { contentType: "image/png", upsert: true })
+              .upload(storagePath, webpBuffer, { contentType: "image/webp", upsert: true })
             if (!upErr) {
               const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
               await supabase.from("lessons").update({ cover_image_url: publicUrl }).eq("id", lessonId)
