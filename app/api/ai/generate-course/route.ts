@@ -171,19 +171,17 @@ ${bookContext}`
         : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
 
       const imgResponse = await getOpenAI().images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1",
         prompt,
         n: 1,
         size: "1024x1024",
-        quality: "standard",
+        quality: "medium",
       })
 
-      const tempUrl = imgResponse.data?.[0]?.url
-      if (tempUrl) {
-        // Download and re-upload to Supabase for a permanent URL
+      const b64 = imgResponse.data?.[0]?.b64_json
+      if (b64) {
         try {
-          const imgFetch = await fetch(tempUrl)
-          const imgBuffer = Buffer.from(await imgFetch.arrayBuffer())
+          const imgBuffer = Buffer.from(b64, "base64")
           const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
           const { data: upData } = await supabase.storage
             .from("course-media")
@@ -191,11 +189,9 @@ ${bookContext}`
           if (upData) {
             const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
             thumbnailUrl = publicUrl
-          } else {
-            thumbnailUrl = tempUrl
           }
         } catch {
-          thumbnailUrl = tempUrl
+          // image upload failed — thumbnail stays null
         }
       }
     }

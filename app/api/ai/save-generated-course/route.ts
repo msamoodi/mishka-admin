@@ -154,16 +154,15 @@ export async function POST(req: NextRequest) {
         const prompt = `Cover image for an online course lesson titled "${l.title}" from the course "${categoryLabel}". ${styleClause} Square format, no text, no typography.`
         try {
           const imgRes = await openai.images.generate({
-            model: "dall-e-3",
+            model: "gpt-image-1",
             prompt,
             n: 1,
             size: "1024x1024",
-            quality: "standard",
+            quality: "medium",
           })
-          const tempUrl = imgRes.data?.[0]?.url
-          if (tempUrl) {
-            const imgFetch = await fetch(tempUrl)
-            const buffer = Buffer.from(await imgFetch.arrayBuffer())
+          const b64 = imgRes.data?.[0]?.b64_json
+          if (b64) {
+            const buffer = Buffer.from(b64, "base64")
             const storagePath = `images/ai-generated/${courseId}/${Date.now()}-lesson-${i}.png`
             const { error: upErr } = await supabase.storage
               .from("course-media")
