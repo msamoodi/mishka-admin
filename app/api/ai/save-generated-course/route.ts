@@ -152,10 +152,15 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < insertedLessons.length; i++) {
         const lessonId = insertedLessons[i].id
         const l = contentItems[i]
-        const styleClause = lessonImageStyle?.trim()
-          ? `Style: ${lessonImageStyle.trim()}.`
-          : "Style: clean flat illustration, professional, modern."
-        const prompt = `Cover image for an online course lesson titled "${l.title}" from the course "${categoryLabel}". ${styleClause} Square format, no text, no typography.`
+        const lessonSummary = [l.paragraph1, l.paragraph2].filter(Boolean).join(" ").slice(0, 200)
+        const rawStyle = lessonImageStyle?.trim() ?? ""
+        const prompt = rawStyle.includes("{LESSON_TITLE}") || rawStyle.includes("{LESSON_SUMMARY}")
+          ? rawStyle
+              .replace(/\{LESSON_TITLE\}/g, l.title)
+              .replace(/\{LESSON_SUMMARY\}/g, lessonSummary)
+          : rawStyle
+            ? `Cover image for an online course lesson titled "${l.title}" from the course "${categoryLabel}". Style: ${rawStyle}. Square format, no text, no typography.`
+            : `Cover image for an online course lesson titled "${l.title}" from the course "${categoryLabel}". Style: clean flat illustration, professional, modern. Square format, no text, no typography.`
         try {
           const imgRes = await openai.images.generate({
             model: "gpt-image-1",

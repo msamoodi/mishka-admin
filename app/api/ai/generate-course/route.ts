@@ -129,8 +129,14 @@ The items array must alternate: content lesson, then quiz, content lesson, then 
 For CONTENT items: type="content", fill paragraph1/paragraph2/callout, questions=[]
 For QUIZ items: type="quiz", paragraph1="", paragraph2="", callout="", fill questions with 3–5 multiple-choice questions (4 options each, correct_index set)`
 
+    const resolvedInstructions = (additionalInstructions ?? "")
+      .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
+      .replace(/\{LEVEL\}/g, levelLabel)
+      .replace(/\{CATEGORY\}/g, categoryLabel)
+      .trim()
+
     const userPrompt = `Create a ${levelLabel}-level ${categoryLabel} course based on the following book content.
-${additionalInstructions ? `\nAdditional instructions: ${additionalInstructions}\n` : ""}
+${resolvedInstructions ? `\nAdditional instructions: ${resolvedInstructions}\n` : ""}
 Generate 6–10 content lessons, each immediately followed by a quiz. The items array must interleave them: content, quiz, content, quiz, …
 
 BOOK CONTENT:
@@ -159,8 +165,12 @@ ${bookContext}`
     // Optional: generate thumbnail with DALL·E 3
     let thumbnailUrl: string | null = null
     if (generateImage) {
-      const prompt = imagePrompt
-        ? `${imagePrompt}. Course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Square format, no text.`
+      const resolvedImagePrompt = (imagePrompt ?? "")
+        .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
+        .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
+        .trim()
+      const prompt = resolvedImagePrompt
+        ? resolvedImagePrompt
         : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
 
       const imgResponse = await getOpenAI().images.generate({

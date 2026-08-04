@@ -124,6 +124,12 @@ export async function POST(req: NextRequest) {
     const levelLabel    = LEVEL_LABELS[level] ?? level
     const openai        = getOpenAI()
 
+    const resolvedInstructions = (additionalInstructions ?? "")
+      .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
+      .replace(/\{LEVEL\}/g, levelLabel)
+      .replace(/\{CATEGORY\}/g, categoryLabel)
+      .trim()
+
     // ── Step 1: Plan the curriculum ──────────────────────────────────────────
     const planResponse = await openai.responses.create({
       model: "gpt-4o",
@@ -136,7 +142,7 @@ Rules:
 - Do not include any markdown formatting
 - Return ONLY the JSON object`,
       input: `Plan a ${levelLabel}-level ${categoryLabel} course based on the following book content.
-${additionalInstructions ? `Additional instructions: ${additionalInstructions}\n` : ""}Create exactly 10 lessons ordered from foundational to advanced.
+${resolvedInstructions ? `Additional instructions: ${resolvedInstructions}\n` : ""}Create exactly 10 lessons ordered from foundational to advanced.
 
 BOOK CONTENT:
 ${bookContext}`,
@@ -239,8 +245,12 @@ ${bookContext}`,
     // Optional: generate thumbnail
     let thumbnailUrl: string | null = null
     if (generateImage) {
-      const prompt = imagePrompt
-        ? `${imagePrompt}. Course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Square format, no text.`
+      const resolvedImagePrompt = (imagePrompt ?? "")
+        .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
+        .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
+        .trim()
+      const prompt = resolvedImagePrompt
+        ? resolvedImagePrompt
         : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
 
       try {

@@ -5,6 +5,66 @@ import { withBasePath } from "@/lib/basePath"
 
 type Book = { id: string; title: string; author: string | null; category: string | null; level: string | null }
 
+// ── Sample prompts ────────────────────────────────────────────────────────────
+
+const SAMPLE_THUMBNAIL_PROMPT = `Create a widescreen (16:9 aspect ratio) illustration in a modern 3D render style: smooth, polished matte-and-glass materials, soft studio lighting, subtle rim light, shallow depth of field, and a clean, minimal light gradient background (no scenery, no environment detail).
+
+The image must be a close-up (chest-up or head-and-shoulders framing) of a single friendly, stylized 3D character — rounded, approachable proportions, gender-neutral, minimally detailed face (simple expressive eyes, no harsh realism). The character should be the clear focal point, positioned slightly off-center, looking either at the camera or at a nearby floating element.
+
+Course topic: "{COURSE_NAME}"
+Course summary: "{COURSE_SUMMARY}"
+
+Based on the course topic above, give the character one small, literal prop or interaction relevant to the subject, and surround them with 2–3 small, softly glowing related objects floating at different depths in the background, out of focus.
+
+No text, letters, numbers, or logos anywhere in the image. No character other than the single main figure. Even, soft lighting with gentle shadows.`
+
+const SAMPLE_LESSON_IMAGE_PROMPT = `Create a single square (1:1 aspect ratio) illustration in Claymorphism style: soft, rounded, puffy 3D clay-like shapes with smooth matte surfaces, soft ambient shadows, and gentle rounded edges on every element. Use a soft pastel color palette. Background must be plain white, with no gradient, texture, or scenery.
+
+No text, letters, numbers, or labels anywhere in the image.
+
+Lesson title: "{LESSON_TITLE}"
+Lesson summary: "{LESSON_SUMMARY}"
+
+Decide the visual approach based on the lesson content above:
+- If the lesson is about a process, comparison, workflow, or abstract system, render it as a simple clay-style infographic: 2–4 soft rounded icon/card shapes connected by simple lines or arrows.
+- If the lesson is about a behavior, decision, interaction, or human-centered concept, render it with a simple, friendly clay-style character (rounded, faceless or minimally expressive, gender-neutral) performing one clear, literal action.
+
+No more than 3–5 distinct visual elements total. Center the composition with generous white space around it. Soft, even studio-style lighting. No harsh contrast, no photorealism, no line art.`
+
+const SAMPLE_COURSE_PROMPT = `You are a specialist curriculum writer creating a course on "{COURSE_NAME}", a {LEVEL}-level course in the {CATEGORY} category. The course must be built around real-world examples, named tactics, realistic scenarios, and concrete detail — not generic, abstract explanations. Every lesson should read like it was written by a practitioner, not a textbook.
+
+STRUCTURE RULES:
+1. Generate a maximum of 15 content lessons.
+2. Every content lesson must be immediately followed by exactly one quiz lesson — a strict 1 lesson : 1 quiz pairing. Do not group multiple lessons under one quiz, and do not have a lesson with no quiz.
+3. Each quiz contains exactly 1 question, with exactly 4 answer options, and exactly 1 correct answer (correct_index).
+4. Every quiz lesson's title must be exactly "Quiz".
+
+CONTENT LESSON RULES:
+- Clear, specific title (no generic labels).
+- paragraph1: 70–90 words of substantive, practical content.
+- paragraph2: 70–90 words of supporting examples, case studies, or deeper explanation.
+- callout: one concrete, memorable insight, example, or usable rule of thumb (never use the word "Tip").
+- Lessons build progressively: foundational → applied → advanced/synthesis. Do not repeat concepts across lessons.
+
+QUIZ RULES (strict):
+- The question must be directly answerable from its preceding lesson's content, not general knowledge.
+- Include a clear explanation of why the correct answer is right.
+- The correct answer's position must be randomized unpredictably across the course — never sequential (not 0,1,2,3,0,1,2,3 repeating).
+- All 4 options must be similar in length and level of detail; the correct option must never be noticeably longer or more detailed than the distractors.
+- Distractors must be plausible, not absurd throwaways.`
+
+function InsertSample({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors"
+    >
+      Insert sample
+    </button>
+  )
+}
+
 const CATEGORIES = [
   { value: "product-design",       label: "Product Design" },
   { value: "digital-marketing",    label: "Digital Marketing" },
@@ -508,7 +568,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
 
       {/* Course Prompt */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-1">4. Course Prompt <span className="font-normal text-gray-400">(optional)</span></h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-gray-800">4. Course Prompt <span className="font-normal text-gray-400">(optional)</span></h2>
+          <InsertSample onClick={() => setCoursePrompt(SAMPLE_COURSE_PROMPT)} />
+        </div>
         <p className="text-xs text-gray-500 mb-3">Guide GPT-4o on tone, structure, and focus. The more specific, the better the result.</p>
         <textarea
           rows={5}
@@ -521,7 +584,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
 
       {/* Image generation */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">5. Course Thumbnail</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-800">5. Course Thumbnail</h2>
+          <InsertSample onClick={() => { setGenerateImage(true); setImagePrompt(SAMPLE_THUMBNAIL_PROMPT) }} />
+        </div>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -535,7 +601,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
           <div className="mt-3">
             <label className="text-xs font-medium text-gray-500 block mb-1">Image style / prompt <span className="font-normal text-gray-400">(optional)</span></label>
             <textarea
-              rows={2}
+              rows={4}
               value={imagePrompt}
               onChange={e => setImagePrompt(e.target.value)}
               placeholder="e.g. Minimalist flat illustration, soft blue tones, abstract shapes representing creativity and design"
@@ -566,7 +632,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
 
       {/* Lesson images */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">7. Lesson Cover Images</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-800">7. Lesson Cover Images</h2>
+          <InsertSample onClick={() => { setGenerateLessonImages(true); setLessonImageStyle(SAMPLE_LESSON_IMAGE_PROMPT) }} />
+        </div>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -581,7 +650,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
             <div>
               <label className="text-xs font-medium text-gray-500 block mb-1">Image style / prompt <span className="font-normal text-gray-400">(optional)</span></label>
               <textarea
-                rows={2}
+                rows={4}
                 value={lessonImageStyle}
                 onChange={e => setLessonImageStyle(e.target.value)}
                 placeholder="e.g. Minimalist flat illustration, warm earth tones, simple geometric shapes — consistent visual style across all lessons"
