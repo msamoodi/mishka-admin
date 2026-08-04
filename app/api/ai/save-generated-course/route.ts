@@ -123,10 +123,12 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < insertedLessons.length; i++) {
         const lessonId = insertedLessons[i].id
         const l = contentItems[i]
-        const text = [l.paragraph1, l.paragraph2 || ""].join(" ").trim().slice(0, 4096)
+        // Include callout so the narrated text matches the app's sync function exactly
+        const text = [l.paragraph1, l.paragraph2 || "", l.callout || ""]
+          .filter(Boolean).join(" ").trim().slice(0, 4096)
         if (!text) continue
         try {
-          const mp3 = await openai.audio.speech.create({ model: "tts-1", voice: "nova", input: text })
+          const mp3 = await openai.audio.speech.create({ model: "tts-1", voice: "cedar", input: text })
           const buffer = Buffer.from(await mp3.arrayBuffer())
           const storagePath = `audio/ai-generated/${courseId}/${Date.now()}-lesson-${i}.mp3`
           const { error: upErr } = await supabase.storage
