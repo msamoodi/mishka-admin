@@ -83,14 +83,14 @@ Rules:
   - link_type "figma" or "figjam" for design/visual tasks; "google_drive" for strategy, research, or documentation tasks
   - brief: 2–3 sentences — what to do, what to deliver, constraints`
 
-    const response = await client.chat.completions.create({
+    const response = await client.responses.create({
       model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1500,
+      input: prompt,
+      text: { format: { type: "json_object" } },
+      max_output_tokens: 1500,
     })
 
-    const raw = response.choices[0]?.message?.content ?? "{}"
+    const raw = response.output_text ?? "{}"
     const generated = JSON.parse(raw)
 
     return NextResponse.json({

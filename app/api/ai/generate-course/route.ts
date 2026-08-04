@@ -143,20 +143,25 @@ Generate 6–10 lessons with quizzes after every 2–3 lessons.
 BOOK CONTENT:
 ${bookContext}`
 
-    const response = await getOpenAI().chat.completions.create({
+    const response = await getOpenAI().responses.create({
       model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt + "\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences, no explanation — raw JSON only." },
-        { role: "user",   content: userPrompt },
-      ],
-      max_tokens: 16000,
+      instructions: systemPrompt,
+      input: userPrompt,
+      text: {
+        format: {
+          type: "json_schema",
+          name: COURSE_JSON_SCHEMA.name,
+          strict: COURSE_JSON_SCHEMA.strict,
+          schema: COURSE_JSON_SCHEMA.schema,
+        },
+      },
+      max_output_tokens: 16000,
     })
 
-    const raw = response.choices[0]?.message?.content
+    const raw = response.output_text
     if (!raw) return NextResponse.json({ error: "No response from OpenAI" }, { status: 500 })
 
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim()
-    const course = JSON.parse(cleaned)
+    const course = JSON.parse(raw)
 
     // Optional: generate thumbnail with DALL·E 3
     let thumbnailUrl: string | null = null
@@ -171,7 +176,6 @@ ${bookContext}`
         n: 1,
         size: "1024x1024",
         quality: "standard",
-        response_format: "url",
       })
 
       const tempUrl = imgResponse.data?.[0]?.url

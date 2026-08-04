@@ -159,7 +159,6 @@ export async function POST(req: NextRequest) {
             n: 1,
             size: "1024x1024",
             quality: "standard",
-            response_format: "url",
           })
           const tempUrl = imgRes.data?.[0]?.url
           if (tempUrl) {
