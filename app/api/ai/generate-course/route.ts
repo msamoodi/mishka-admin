@@ -155,7 +155,8 @@ ${bookContext}`
     const raw = response.choices[0]?.message?.content
     if (!raw) return NextResponse.json({ error: "No response from OpenAI" }, { status: 500 })
 
-    const course = JSON.parse(raw)
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim()
+    const course = JSON.parse(cleaned)
 
     // Optional: generate thumbnail with DALL·E 3
     let thumbnailUrl: string | null = null
