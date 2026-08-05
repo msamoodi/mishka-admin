@@ -94,8 +94,9 @@ Rules:
     const generated = JSON.parse(raw)
 
     // Build lookup maps so we can handle cases where the model returns a name instead of a UUID
-    const courseById   = new Map((courses ?? []).map(c => [c.id, c]))
-    const courseByName = new Map((courses ?? []).map(c => [c.course_name.toLowerCase(), c.id]))
+    type CourseRow = { id: string; course_name: string; category: string; level: string }
+    const courseById   = new Map((courses ?? []).map((c: CourseRow) => [c.id, c]))
+    const courseByName = new Map((courses ?? []).map((c: CourseRow) => [c.course_name.toLowerCase(), c.id]))
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
     const resolvedCourseIds = (Array.isArray(generated.course_ids) ? generated.course_ids : [])
