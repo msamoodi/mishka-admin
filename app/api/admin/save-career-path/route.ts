@@ -12,13 +12,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
+    // Strip anything that isn't a valid UUID — prevents DB errors when the AI
+    // returns a course name instead of its ID
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const validCourseIds = (course_ids ?? []).filter(
+      (id: unknown) => typeof id === "string" && UUID_RE.test(id)
+    )
+
     const payload = {
       title: title.trim(),
       area: area ?? "",
       categories: categories ?? [],
       levels: levels ?? [],
       career_levels: career_levels ?? [],
-      course_ids: course_ids ?? [],
+      course_ids: validCourseIds,
       is_published: is_published ?? false,
       practice_link_type: practice_link_type ?? "figma",
       updated_at: new Date().toISOString(),

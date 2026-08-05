@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const courseList = (courses ?? [])
       .map((c: { id: string; course_name: string; category: string; level: string }) =>
-        `ID:"${c.id}" | Name:"${c.course_name}" | Category:${c.category} | Level:${c.level}`)
+        `UUID:${c.id}  name:${c.course_name}  category:${c.category}  level:${c.level}`)
       .join("\n")
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
 Generate a complete learning path for a ${levelLabel} ${jobTitle}.
 
-Available courses (ONLY use IDs from this list):
+Available courses (each line: UUID then name then category then level):
 ${courseList}
 
 Return ONLY valid JSON with this exact structure — no explanation, no markdown:
@@ -78,7 +78,7 @@ Rules:
 - title: must be exactly "${defaultTitle}"
 - categories: pick from ["product-design","digital-marketing","branding-design","user-research","data-and-ai-literacy"]
 - levels: use ${JSON.stringify(suggestedLevels)} for a ${levelLabel}
-- course_ids: 6–10 most relevant courses in logical learning order; IDs must exist in the list above
+- course_ids: array of 6–10 UUID strings (the UUID field, NOT the name) from the list above, in logical learning order
 - tasks: exactly 5 unique real-world practice tasks for a ${levelLabel} ${jobTitle}
   - link_type "figma" or "figjam" for design/visual tasks; "google_drive" for strategy, research, or documentation tasks
   - brief: 2–3 sentences — what to do, what to deliver, constraints`
