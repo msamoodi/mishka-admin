@@ -93,11 +93,25 @@ Rules:
     const raw = response.output_text ?? "{}"
     const generated = JSON.parse(raw)
 
+    // Build lookup maps so we can handle cases where the model returns a name instead of a UUID
+    const courseById   = new Map((courses ?? []).map(c => [c.id, c]))
+    const courseByName = new Map((courses ?? []).map(c => [c.course_name.toLowerCase(), c.id]))
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+    const resolvedCourseIds = (Array.isArray(generated.course_ids) ? generated.course_ids : [])
+      .map((raw: unknown) => {
+        if (typeof raw !== "string") return null
+        if (UUID_RE.test(raw) && courseById.has(raw)) return raw
+        // Fallback: model returned a name — look it up
+        return courseByName.get(raw.toLowerCase()) ?? null
+      })
+      .filter(Boolean) as string[]
+
     return NextResponse.json({
       title:      generated.title      ?? defaultTitle,
       categories: generated.categories ?? [],
       levels:     generated.levels     ?? suggestedLevels,
-      course_ids: generated.course_ids ?? [],
+      course_ids: resolvedCourseIds,
       tasks:      Array.isArray(generated.tasks) ? generated.tasks.slice(0, 5) : [],
     })
   } catch (err) {
