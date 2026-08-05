@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getOpenAI } from "@/lib/openai"
 
-
 export const maxDuration = 300
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -19,7 +18,6 @@ const LEVEL_LABELS: Record<string, string> = {
   advanced:     "Advanced",
 }
 
-// Step 1: plan the full curriculum structure
 const PLAN_SCHEMA = {
   name: "course_plan",
   strict: true,
@@ -54,7 +52,6 @@ const PLAN_SCHEMA = {
   },
 }
 
-// Step 2: one call per lesson — writes full lesson content + its quiz
 const LESSON_SCHEMA = {
   name: "lesson_with_quiz",
   strict: true,
@@ -87,53 +84,69 @@ const LESSON_SCHEMA = {
 }
 
 export async function POST(req: NextRequest) {
+  let body: {
+    bookIds?: string[]
+    category?: string
+    level?: string
+    additionalInstructions?: string
+    generateImage?: boolean
+    imagePrompt?: string
+  }
   try {
-    const { bookIds, category, level, additionalInstructions, generateImage, imagePrompt } = await req.json() as {
-      bookIds: string[]
-      category: string
-      level: string
-      additionalInstructions?: string
-      generateImage?: boolean
-      imagePrompt?: string
-    }
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
 
-    if (!bookIds?.length || !category || !level) {
-      return NextResponse.json({ error: "bookIds, category and level are required" }, { status: 400 })
-    }
+  const { bookIds, category, level, additionalInstructions, generateImage, imagePrompt } = body
+  if (!bookIds?.length || !category || !level) {
+    return NextResponse.json({ error: "bookIds, category and level are required" }, { status: 400 })
+  }
 
-    const supabase = createServiceClient()
-    const { data: books, error: bErr } = await supabase
-      .from("ai_books")
-      .select("title, author, extracted_text")
-      .in("id", bookIds)
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"))
+      }
+      try {
+        send({ type: "progress", message: "Analyzing book content…" })
 
-    if (bErr || !books?.length) {
-      return NextResponse.json({ error: "Books not found" }, { status: 404 })
-    }
+        const supabase = createServiceClient()
+        const { data: books, error: bErr } = await supabase
+          .from("ai_books")
+          .select("title, author, extracted_text")
+          .in("id", bookIds)
 
-    const MAX_CHARS = 80_000
-    const perBook = Math.floor(MAX_CHARS / books.length)
-    const bookContext = books
-      .map((b: { title: string; author: string | null; extracted_text: string }, i: number) => {
-        const text = b.extracted_text.slice(0, perBook)
-        return `=== BOOK ${i + 1}: "${b.title}"${b.author ? ` by ${b.author}` : ""} ===\n${text}`
-      })
-      .join("\n\n")
+        if (bErr || !books?.length) {
+          send({ type: "error", error: "Books not found" })
+          return
+        }
 
-    const categoryLabel = CATEGORY_LABELS[category] ?? category
-    const levelLabel    = LEVEL_LABELS[level] ?? level
-    const openai        = getOpenAI()
+        const MAX_CHARS = 80_000
+        const perBook = Math.floor(MAX_CHARS / books.length)
+        const bookContext = books
+          .map((b: { title: string; author: string | null; extracted_text: string }, i: number) => {
+            const text = b.extracted_text.slice(0, perBook)
+            return `=== BOOK ${i + 1}: "${b.title}"${b.author ? ` by ${b.author}` : ""} ===\n${text}`
+          })
+          .join("\n\n")
 
-    const resolvedInstructions = (additionalInstructions ?? "")
-      .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
-      .replace(/\{LEVEL\}/g, levelLabel)
-      .replace(/\{CATEGORY\}/g, categoryLabel)
-      .trim()
+        const categoryLabel = CATEGORY_LABELS[category] ?? category
+        const levelLabel    = LEVEL_LABELS[level] ?? level
+        const openai        = getOpenAI()
 
-    // ── Step 1: Plan the curriculum ──────────────────────────────────────────
-    const planResponse = await openai.responses.create({
-      model: "gpt-4o",
-      instructions: `You are an expert curriculum designer for Mishka, a professional online learning platform.
+        const resolvedInstructions = (additionalInstructions ?? "")
+          .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
+          .replace(/\{LEVEL\}/g, levelLabel)
+          .replace(/\{CATEGORY\}/g, categoryLabel)
+          .trim()
+
+        send({ type: "progress", message: "Planning curriculum…" })
+
+        const planResponse = await openai.responses.create({
+          model: "gpt-4o",
+          instructions: `You are an expert curriculum designer for Mishka, a professional online learning platform.
 Your task is to plan a complete course structure based on book content.
 Rules:
 - Ground every lesson topic in concepts actually present in the book
@@ -141,49 +154,48 @@ Rules:
 - No two lessons should cover overlapping material
 - Do not include any markdown formatting
 - Return ONLY the JSON object`,
-      input: `Plan a ${levelLabel}-level ${categoryLabel} course based on the following book content.
+          input: `Plan a ${levelLabel}-level ${categoryLabel} course based on the following book content.
 ${resolvedInstructions ? `Additional instructions: ${resolvedInstructions}\n` : ""}Create exactly 10 lessons ordered from foundational to advanced.
 
 BOOK CONTENT:
 ${bookContext}`,
-      text: {
-        format: {
-          type: "json_schema",
-          name: PLAN_SCHEMA.name,
-          strict: PLAN_SCHEMA.strict,
-          schema: PLAN_SCHEMA.schema,
-        },
-      },
-      max_output_tokens: 4000,
-    })
+          text: {
+            format: {
+              type: "json_schema",
+              name: PLAN_SCHEMA.name,
+              strict: PLAN_SCHEMA.strict,
+              schema: PLAN_SCHEMA.schema,
+            },
+          },
+          max_output_tokens: 4000,
+        })
 
-    const plan = JSON.parse(planResponse.output_text ?? "{}")
-    const lessonPlan: Array<{ title: string; focus: string }> = plan.lesson_plan ?? []
+        const plan = JSON.parse(planResponse.output_text ?? "{}")
+        const lessonPlan: Array<{ title: string; focus: string }> = plan.lesson_plan ?? []
 
-    // Lesson map — sent to each write call so lessons don't repeat each other
-    const lessonPlanSummary = lessonPlan
-      .map((l, i) => `Lesson ${i + 1}: "${l.title}" — ${l.focus}`)
-      .join("\n")
+        const lessonPlanSummary = lessonPlan
+          .map((l, i) => `Lesson ${i + 1}: "${l.title}" — ${l.focus}`)
+          .join("\n")
 
-    // ── Step 2: Write each lesson + quiz individually ────────────────────────
-    type QuizQuestion = { question: string; options: string[]; correct_index: number; explanation: string }
-    type LessonResult = { title: string; paragraph1: string; paragraph2: string; callout: string; questions: QuizQuestion[] }
+        type QuizQuestion = { question: string; options: string[]; correct_index: number; explanation: string }
+        type LessonResult = { title: string; paragraph1: string; paragraph2: string; callout: string; questions: QuizQuestion[] }
 
-    const items: Array<{
-      type: "content" | "quiz"
-      title: string
-      paragraph1: string
-      paragraph2: string
-      callout: string
-      questions: QuizQuestion[]
-    }> = []
+        const items: Array<{
+          type: "content" | "quiz"
+          title: string
+          paragraph1: string
+          paragraph2: string
+          callout: string
+          questions: QuizQuestion[]
+        }> = []
 
-    for (let i = 0; i < lessonPlan.length; i++) {
-      const outline = lessonPlan[i]
+        for (let i = 0; i < lessonPlan.length; i++) {
+          const outline = lessonPlan[i]
+          send({ type: "progress", message: `Writing lesson ${i + 1} of ${lessonPlan.length}…` })
 
-      const lessonResponse = await openai.responses.create({
-        model: "gpt-4o",
-        instructions: `You are writing a single lesson for a professional online course on ${categoryLabel} (${levelLabel} level).
+          const lessonResponse = await openai.responses.create({
+            model: "gpt-4o",
+            instructions: `You are writing a single lesson for a professional online course on ${categoryLabel} (${levelLabel} level).
 Write with depth and clarity. Every claim must be grounded in the provided book material.
 Rules:
 - paragraph1: 4–5 substantive sentences, no platitudes
@@ -194,7 +206,7 @@ Rules:
 - Do not repeat content covered in other lessons
 - No markdown formatting
 - Return ONLY the JSON object`,
-        input: `Write Lesson ${i + 1} of 10: "${outline.title}"
+            input: `Write Lesson ${i + 1} of 10: "${outline.title}"
 Focus for this lesson: ${outline.focus}
 
 Full course plan (do NOT repeat content from other lessons):
@@ -202,85 +214,95 @@ ${lessonPlanSummary}
 
 BOOK CONTENT:
 ${bookContext}`,
-        text: {
-          format: {
-            type: "json_schema",
-            name: LESSON_SCHEMA.name,
-            strict: LESSON_SCHEMA.strict,
-            schema: LESSON_SCHEMA.schema,
-          },
-        },
-        max_output_tokens: 3000,
-      })
+            text: {
+              format: {
+                type: "json_schema",
+                name: LESSON_SCHEMA.name,
+                strict: LESSON_SCHEMA.strict,
+                schema: LESSON_SCHEMA.schema,
+              },
+            },
+            max_output_tokens: 3000,
+          })
 
-      const lesson = JSON.parse(lessonResponse.output_text ?? "{}") as LessonResult
+          const lesson = JSON.parse(lessonResponse.output_text ?? "{}") as LessonResult
 
-      items.push({
-        type: "content",
-        title:      lesson.title      ?? outline.title,
-        paragraph1: lesson.paragraph1 ?? "",
-        paragraph2: lesson.paragraph2 ?? "",
-        callout:    lesson.callout    ?? "",
-        questions:  [],
-      })
-      items.push({
-        type:       "quiz",
-        title:      `Quiz: ${lesson.title ?? outline.title}`,
-        paragraph1: "",
-        paragraph2: "",
-        callout:    "",
-        questions:  lesson.questions ?? [],
-      })
-    }
+          items.push({
+            type: "content",
+            title:      lesson.title      ?? outline.title,
+            paragraph1: lesson.paragraph1 ?? "",
+            paragraph2: lesson.paragraph2 ?? "",
+            callout:    lesson.callout    ?? "",
+            questions:  [],
+          })
+          items.push({
+            type:       "quiz",
+            title:      `Quiz: ${lesson.title ?? outline.title}`,
+            paragraph1: "",
+            paragraph2: "",
+            callout:    "",
+            questions:  lesson.questions ?? [],
+          })
+        }
 
-    const course = {
-      course_name:  plan.course_name  ?? "",
-      description:  plan.description  ?? "",
-      tags:         plan.tags         ?? [],
-      time_to_read: plan.time_to_read ?? 60,
-      objectives:   plan.objectives   ?? [],
-      items,
-    }
+        const course = {
+          course_name:  plan.course_name  ?? "",
+          description:  plan.description  ?? "",
+          tags:         plan.tags         ?? [],
+          time_to_read: plan.time_to_read ?? 60,
+          objectives:   plan.objectives   ?? [],
+          items,
+        }
 
-    // Optional: generate thumbnail
-    let thumbnailUrl: string | null = null
-    if (generateImage) {
-      const resolvedImagePrompt = (imagePrompt ?? "")
-        .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
-        .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
-        .trim()
-      const prompt = resolvedImagePrompt
-        ? resolvedImagePrompt
-        : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
+        let thumbnailUrl: string | null = null
+        if (generateImage) {
+          send({ type: "progress", message: "Generating thumbnail…" })
 
-      try {
-        const imgResponse = await openai.images.generate({
-          model: "gpt-image-1",
-          prompt,
-          n: 1,
-          size: "1024x1024",
-          quality: "medium",
-        })
-        const b64 = imgResponse.data?.[0]?.b64_json
-        if (b64) {
-          const pngBuffer = Buffer.from(b64, "base64")
-          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
-          const { data: upData } = await supabase.storage
-            .from("course-media")
-            .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
-          if (upData) {
-            const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
-            thumbnailUrl = publicUrl
+          const resolvedImagePrompt = (imagePrompt ?? "")
+            .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
+            .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
+            .trim()
+          const prompt = resolvedImagePrompt
+            ? resolvedImagePrompt
+            : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
+
+          try {
+            const imgResponse = await openai.images.generate({
+              model: "gpt-image-1",
+              prompt,
+              n: 1,
+              size: "1024x1024",
+              quality: "medium",
+            })
+            const b64 = imgResponse.data?.[0]?.b64_json
+            if (b64) {
+              const pngBuffer = Buffer.from(b64, "base64")
+              const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
+              const { data: upData } = await supabase.storage
+                .from("course-media")
+                .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
+              if (upData) {
+                const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
+                thumbnailUrl = publicUrl
+              }
+            }
+          } catch {
+            // thumbnail failure is non-fatal
           }
         }
-      } catch {
-        // thumbnail failure is non-fatal
-      }
-    }
 
-    return NextResponse.json({ course, category, level, thumbnailUrl })
-  } catch (err) {
-    console.error("[generate-course-deep]", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
-  }
+        send({ type: "done", course, category, level, thumbnailUrl })
+      } catch (err) {
+        console.error("[generate-course-deep]", err)
+        send({ type: "error", error: String(err) })
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: { "Content-Type": "application/x-ndjson" },
+  })
 }

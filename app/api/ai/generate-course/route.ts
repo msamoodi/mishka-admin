@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getOpenAI } from "@/lib/openai"
 
-
 export const maxDuration = 120
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -76,44 +75,58 @@ const COURSE_JSON_SCHEMA = {
 }
 
 export async function POST(req: NextRequest) {
+  let body: {
+    bookIds?: string[]
+    category?: string
+    level?: string
+    additionalInstructions?: string
+    generateImage?: boolean
+    imagePrompt?: string
+  }
   try {
-    const { bookIds, category, level, additionalInstructions, generateImage, imagePrompt } = await req.json() as {
-      bookIds: string[]
-      category: string
-      level: string
-      additionalInstructions?: string
-      generateImage?: boolean
-      imagePrompt?: string
-    }
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
 
-    if (!bookIds?.length || !category || !level) {
-      return NextResponse.json({ error: "bookIds, category and level are required" }, { status: 400 })
-    }
+  const { bookIds, category, level, additionalInstructions, generateImage, imagePrompt } = body
+  if (!bookIds?.length || !category || !level) {
+    return NextResponse.json({ error: "bookIds, category and level are required" }, { status: 400 })
+  }
 
-    const supabase = createServiceClient()
-    const { data: books, error: bErr } = await supabase
-      .from("ai_books")
-      .select("title, author, extracted_text")
-      .in("id", bookIds)
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"))
+      }
+      try {
+        send({ type: "progress", message: "Analyzing book content…" })
 
-    if (bErr || !books?.length) {
-      return NextResponse.json({ error: "Books not found" }, { status: 404 })
-    }
+        const supabase = createServiceClient()
+        const { data: books, error: bErr } = await supabase
+          .from("ai_books")
+          .select("title, author, extracted_text")
+          .in("id", bookIds)
 
-    // Trim book text to fit context — ~80K chars total across all books
-    const MAX_CHARS = 80_000
-    const perBook = Math.floor(MAX_CHARS / books.length)
-    const bookContext = books
-      .map((b: { title: string; author: string | null; extracted_text: string }, i: number) => {
-        const text = b.extracted_text.slice(0, perBook)
-        return `=== BOOK ${i + 1}: "${b.title}"${b.author ? ` by ${b.author}` : ""} ===\n${text}`
-      })
-      .join("\n\n")
+        if (bErr || !books?.length) {
+          send({ type: "error", error: "Books not found" })
+          return
+        }
 
-    const categoryLabel = CATEGORY_LABELS[category] ?? category
-    const levelLabel    = LEVEL_LABELS[level] ?? level
+        const MAX_CHARS = 80_000
+        const perBook = Math.floor(MAX_CHARS / books.length)
+        const bookContext = books
+          .map((b: { title: string; author: string | null; extracted_text: string }, i: number) => {
+            const text = b.extracted_text.slice(0, perBook)
+            return `=== BOOK ${i + 1}: "${b.title}"${b.author ? ` by ${b.author}` : ""} ===\n${text}`
+          })
+          .join("\n\n")
 
-    const systemPrompt = `You are an expert curriculum designer creating online courses for Mishka, a professional learning platform.
+        const categoryLabel = CATEGORY_LABELS[category] ?? category
+        const levelLabel    = LEVEL_LABELS[level] ?? level
+
+        const systemPrompt = `You are an expert curriculum designer creating online courses for Mishka, a professional learning platform.
 
 You will be given content from one or more books and must design a single, well-structured course based on that material.
 
@@ -130,79 +143,90 @@ The items array must alternate: content lesson, then quiz, content lesson, then 
 For CONTENT items: type="content", fill paragraph1/paragraph2/callout, questions=[]
 For QUIZ items: type="quiz", paragraph1="", paragraph2="", callout="", fill questions with 3–5 multiple-choice questions (4 options each, correct_index set)`
 
-    const resolvedInstructions = (additionalInstructions ?? "")
-      .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
-      .replace(/\{LEVEL\}/g, levelLabel)
-      .replace(/\{CATEGORY\}/g, categoryLabel)
-      .trim()
+        const resolvedInstructions = (additionalInstructions ?? "")
+          .replace(/\{COURSE_NAME\}/g, "the course derived from the provided book content")
+          .replace(/\{LEVEL\}/g, levelLabel)
+          .replace(/\{CATEGORY\}/g, categoryLabel)
+          .trim()
 
-    const userPrompt = `Create a ${levelLabel}-level ${categoryLabel} course based on the following book content.
+        const userPrompt = `Create a ${levelLabel}-level ${categoryLabel} course based on the following book content.
 ${resolvedInstructions ? `\nAdditional instructions: ${resolvedInstructions}\n` : ""}
 Generate 8–20 content lessons, each immediately followed by a quiz. The items array must interleave them: content, quiz, content, quiz, …
 
 BOOK CONTENT:
 ${bookContext}`
 
-    const response = await getOpenAI().responses.create({
-      model: "gpt-4o",
-      instructions: systemPrompt,
-      input: userPrompt,
-      text: {
-        format: {
-          type: "json_schema",
-          name: COURSE_JSON_SCHEMA.name,
-          strict: COURSE_JSON_SCHEMA.strict,
-          schema: COURSE_JSON_SCHEMA.schema,
-        },
-      },
-      max_output_tokens: 32000,
-    })
+        send({ type: "progress", message: "Generating course structure…" })
 
-    const raw = response.output_text
-    if (!raw) return NextResponse.json({ error: "No response from OpenAI" }, { status: 500 })
+        const response = await getOpenAI().responses.create({
+          model: "gpt-4o",
+          instructions: systemPrompt,
+          input: userPrompt,
+          text: {
+            format: {
+              type: "json_schema",
+              name: COURSE_JSON_SCHEMA.name,
+              strict: COURSE_JSON_SCHEMA.strict,
+              schema: COURSE_JSON_SCHEMA.schema,
+            },
+          },
+          max_output_tokens: 32000,
+        })
 
-    const course = JSON.parse(raw)
+        const raw = response.output_text
+        if (!raw) throw new Error("No response from OpenAI")
+        const course = JSON.parse(raw)
 
-    // Optional: generate thumbnail with DALL·E 3
-    let thumbnailUrl: string | null = null
-    if (generateImage) {
-      const resolvedImagePrompt = (imagePrompt ?? "")
-        .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
-        .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
-        .trim()
-      const prompt = resolvedImagePrompt
-        ? resolvedImagePrompt
-        : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
+        let thumbnailUrl: string | null = null
+        if (generateImage) {
+          send({ type: "progress", message: "Generating thumbnail…" })
 
-      const imgResponse = await getOpenAI().images.generate({
-        model: "gpt-image-1",
-        prompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "medium",
-      })
+          const resolvedImagePrompt = (imagePrompt ?? "")
+            .replace(/\{COURSE_NAME\}/g, course.course_name ?? "")
+            .replace(/\{COURSE_SUMMARY\}/g, course.description ?? "")
+            .trim()
+          const prompt = resolvedImagePrompt
+            ? resolvedImagePrompt
+            : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
 
-      const b64 = imgResponse.data?.[0]?.b64_json
-      if (b64) {
-        try {
-          const pngBuffer = Buffer.from(b64, "base64")
-          const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
-          const { data: upData } = await supabase.storage
-            .from("course-media")
-            .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
-          if (upData) {
-            const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
-            thumbnailUrl = publicUrl
+          const imgResponse = await getOpenAI().images.generate({
+            model: "gpt-image-1",
+            prompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "medium",
+          })
+
+          const b64 = imgResponse.data?.[0]?.b64_json
+          if (b64) {
+            try {
+              const pngBuffer = Buffer.from(b64, "base64")
+              const storagePath = `images/ai-generated/${Date.now()}-thumbnail.png`
+              const { data: upData } = await supabase.storage
+                .from("course-media")
+                .upload(storagePath, pngBuffer, { contentType: "image/png", upsert: true })
+              if (upData) {
+                const { data: { publicUrl } } = supabase.storage.from("course-media").getPublicUrl(storagePath)
+                thumbnailUrl = publicUrl
+              }
+            } catch {
+              // thumbnail upload failed — non-fatal
+            }
           }
-        } catch {
-          // image upload failed — thumbnail stays null
         }
-      }
-    }
 
-    return NextResponse.json({ course, category, level, thumbnailUrl })
-  } catch (err) {
-    console.error("[generate-course]", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
-  }
+        send({ type: "done", course, category, level, thumbnailUrl })
+      } catch (err) {
+        console.error("[generate-course]", err)
+        send({ type: "error", error: String(err) })
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: { "Content-Type": "application/x-ndjson" },
+  })
 }

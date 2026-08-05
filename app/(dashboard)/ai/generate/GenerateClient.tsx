@@ -65,6 +65,59 @@ function InsertSample({ onClick }: { onClick: () => void }) {
   )
 }
 
+function ProgressLog({ messages }: { messages: string[] }) {
+  if (!messages.length) return null
+  return (
+    <div className="bg-gray-950 border border-gray-800 rounded-xl p-4 font-mono text-xs grid gap-1.5">
+      {messages.map((msg, i) => {
+        const isActive = i === messages.length - 1
+        return (
+          <div key={i} className={`flex items-center gap-2 ${isActive ? "text-green-400" : "text-gray-500"}`}>
+            {isActive ? (
+              <svg className="animate-spin w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <span className="text-emerald-600 shrink-0">✓</span>
+            )}
+            <span>{msg}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+async function readNdJsonStream(
+  res: Response,
+  onProgress: (msg: string) => void
+): Promise<Record<string, unknown>> {
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let finalData: Record<string, unknown> = {}
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const msg = JSON.parse(line) as Record<string, unknown>
+        if (msg.type === "progress") onProgress(msg.message as string)
+        else if (msg.type === "done" || msg.type === "error") finalData = msg
+      } catch { /* ignore malformed lines */ }
+    }
+  }
+
+  if (finalData.type === "error") throw new Error(finalData.error as string)
+  return finalData
+}
+
 const CATEGORIES = [
   { value: "product-design",       label: "Product Design" },
   { value: "digital-marketing",    label: "Digital Marketing" },
@@ -264,9 +317,10 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [genLevel,  setGenLevel]  = useState("")
 
   // UI state
-  const [generating, setGenerating] = useState(false)
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
+  const [generating,   setGenerating]   = useState(false)
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [progressLog,  setProgressLog]  = useState<string[]>([])
 
   const filteredBooks = books.filter(b => !b.category || b.category === category)
 
@@ -278,41 +332,58 @@ export default function GenerateClient({ books }: { books: Book[] }) {
     setSelectedBooks([])  // clear selection when category changes
   }
 
+  const addProgress = (msg: string) => setProgressLog(prev => [...prev, msg])
+
   const handleGenerate = async () => {
     if (!selectedBooks.length) { setError("Select at least one book."); return }
-    setGenerating(true); setError(null); setCourse(null); setThumbnailUrl(null)
-    const endpoint = deepMode ? "/api/ai/generate-course-deep" : "/api/ai/generate-course"
-    const res = await fetch(withBasePath(endpoint), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookIds: selectedBooks, category, level,
-        additionalInstructions: coursePrompt,
-        generateImage,
-        imagePrompt: generateImage ? imagePrompt : undefined,
-      }),
-    })
-    const json = await res.json()
-    setGenerating(false)
-    if (!res.ok) { setError(json.error ?? "Generation failed"); return }
-    setCourse(json.course)
-    setGenCat(json.category)
-    setGenLevel(json.level)
-    if (json.thumbnailUrl) setThumbnailUrl(json.thumbnailUrl)
+    setGenerating(true); setError(null); setCourse(null); setThumbnailUrl(null); setProgressLog([])
+    try {
+      const endpoint = deepMode ? "/api/ai/generate-course-deep" : "/api/ai/generate-course"
+      const res = await fetch(withBasePath(endpoint), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookIds: selectedBooks, category, level,
+          additionalInstructions: coursePrompt,
+          generateImage,
+          imagePrompt: generateImage ? imagePrompt : undefined,
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(json.error ?? "Generation failed")
+      }
+      const result = await readNdJsonStream(res, addProgress)
+      setCourse(result.course as GeneratedCourse)
+      setGenCat(result.category as string)
+      setGenLevel(result.level as string)
+      if (result.thumbnailUrl) setThumbnailUrl(result.thumbnailUrl as string)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const handleSave = async () => {
     if (!course) return
-    setSaving(true); setError(null)
-    const res = await fetch(withBasePath("/api/ai/save-generated-course"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio, generateLessonImages, lessonImageStyle }),
-    })
-    const json = await res.json()
-    setSaving(false)
-    if (!res.ok) { setError(json.error ?? "Save failed"); return }
-    router.push(`/courses/${json.courseId}`)
+    setSaving(true); setError(null); setProgressLog([])
+    try {
+      const res = await fetch(withBasePath("/api/ai/save-generated-course"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio, generateLessonImages, lessonImageStyle }),
+      })
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(json.error ?? "Save failed")
+      }
+      const result = await readNdJsonStream(res, addProgress)
+      router.push(`/courses/${result.courseId as string}`)
+    } catch (err) {
+      setError(String(err))
+      setSaving(false)
+    }
   }
 
   // ── Render: review screen ─────────────────────────────────────────────────
@@ -336,14 +407,13 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               disabled={saving}
               className="px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-40"
             >
-              {saving
-                ? (generateAudio || generateLessonImages ? "Saving & generating media…" : "Saving…")
-                : "Save Course →"}
+              {saving ? "Working…" : "Save Course →"}
             </button>
           </div>
         </div>
 
         {error && <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>}
+        {saving && <div className="mb-4"><ProgressLog messages={progressLog} /></div>}
 
         <div className="grid gap-6">
           {/* Course meta */}
@@ -461,7 +531,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
             disabled={saving}
             className="px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-40"
           >
-            {saving ? "Saving…" : "Save Course →"}
+            {saving ? "Working…" : "Save Course →"}
           </button>
         </div>
       </div>
@@ -710,10 +780,12 @@ export default function GenerateClient({ books }: { books: Book[] }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {deepMode ? "Agent generating… (2–4 min)" : `Generating…${generateImage ? " (60–90 sec)" : " (30–60 sec)"}`}
+            {deepMode ? "Agent running…" : "Generating…"}
           </span>
         ) : deepMode ? "Run Agent →" : "Generate Course →"}
       </button>
+
+      {generating && <ProgressLog messages={progressLog} />}
     </div>
   )
 }
