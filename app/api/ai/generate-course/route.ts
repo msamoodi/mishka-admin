@@ -138,7 +138,7 @@ For QUIZ items: type="quiz", paragraph1="", paragraph2="", callout="", fill ques
 
     const userPrompt = `Create a ${levelLabel}-level ${categoryLabel} course based on the following book content.
 ${resolvedInstructions ? `\nAdditional instructions: ${resolvedInstructions}\n` : ""}
-Generate 6–10 content lessons, each immediately followed by a quiz. The items array must interleave them: content, quiz, content, quiz, …
+Generate 8–20 content lessons, each immediately followed by a quiz. The items array must interleave them: content, quiz, content, quiz, …
 
 BOOK CONTENT:
 ${bookContext}`
@@ -155,7 +155,7 @@ ${bookContext}`
           schema: COURSE_JSON_SCHEMA.schema,
         },
       },
-      max_output_tokens: 16000,
+      max_output_tokens: 32000,
     })
 
     const raw = response.output_text

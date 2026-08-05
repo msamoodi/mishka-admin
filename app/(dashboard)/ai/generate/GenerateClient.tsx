@@ -678,7 +678,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
             />
             <div>
               <p className="text-sm font-medium text-gray-900">Quick — single pass</p>
-              <p className="text-xs text-gray-500 mt-0.5">6–10 lessons generated in one API call. Fast (~30 sec), great for drafts and experimentation.</p>
+              <p className="text-xs text-gray-500 mt-0.5">8–20 lessons generated in one API call. Fast (~30–60 sec), great for drafts and experimentation.</p>
             </div>
           </label>
           <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${deepMode ? "border-indigo-600 bg-indigo-50" : "border-gray-200 hover:bg-gray-50"}`}>
