@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runDigest } from "@/lib/runDigest"
 
+export const maxDuration = 60
+
 function authorized(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`
 }

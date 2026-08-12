@@ -180,35 +180,49 @@ export async function runDigest(): Promise<{ sent: number }> {
     })
   }
 
-  const userIds = Object.keys(byUser)
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, first_name, email")
-    .in("id", userIds)
-
   const resend = new Resend(process.env.RESEND_API_KEY)
   let sent = 0
 
-  const batch: { from: string; to: string; subject: string; html: string }[] = []
-  for (const p of (profiles ?? []) as { id: string; first_name: string | null; email: string | null }[]) {
-    if (!p.email) continue
-    const courses = byUser[p.id]
-    if (!courses?.length) continue
-    const name = p.first_name ?? "there"
-    batch.push({
-      from: "Mishka <noreply@mishkaapp.com>",
-      to: p.email,
-      subject: `${name}, your courses are waiting 🐾`,
-      html: buildUserEmail(name, courses),
-    })
-    if (batch.length === 100) {
-      await resend.batch.send(batch.splice(0, 100))
-      sent += 100
+  // profiles table has no email column — fetch emails from auth admin API
+  try {
+    const userIds = Object.keys(byUser)
+    if (userIds.length > 0) {
+      const [profilesRes, authRes] = await Promise.all([
+        supabase.from("profiles").select("id, first_name").in("id", userIds),
+        supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      ])
+
+      const emailMap = new Map<string, string>(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (authRes.data?.users ?? []).map((u: any) => [String(u.id), String(u.email ?? "")])
+      )
+
+      const batch: { from: string; to: string; subject: string; html: string }[] = []
+      for (const p of (profilesRes.data ?? []) as { id: string; first_name: string | null }[]) {
+        const email = emailMap.get(p.id)
+        if (!email) continue
+        const courses = byUser[p.id]
+        if (!courses?.length) continue
+        const name = p.first_name ?? "there"
+        batch.push({
+          from: "Mishka <noreply@mishkaapp.com>",
+          to: email,
+          subject: `${name}, your courses are waiting 🐾`,
+          html: buildUserEmail(name, courses),
+        })
+        if (batch.length === 100) {
+          await resend.batch.send(batch.splice(0, 100))
+          sent += 100
+        }
+      }
+      if (batch.length > 0) {
+        await resend.batch.send(batch)
+        sent += batch.length
+      }
     }
-  }
-  if (batch.length > 0) {
-    await resend.batch.send(batch)
-    sent += batch.length
+  } catch (err) {
+    console.error("[runDigest] user emails failed:", err)
+    // Don't let user email failures block the admin summary
   }
 
   // ── Admin summary email ───────────────────────────────────────────────────
