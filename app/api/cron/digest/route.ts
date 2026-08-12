@@ -13,5 +13,5 @@ export async function GET(req: NextRequest) {
   }
   const result = await runDigest()
   console.log("[cron/digest]", result)
-  return NextResponse.json({ ok: true, ...result })
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 })
 }

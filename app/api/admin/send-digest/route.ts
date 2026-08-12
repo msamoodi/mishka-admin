@@ -6,5 +6,5 @@ export const maxDuration = 60
 export async function POST() {
   const result = await runDigest()
   console.log("[admin/send-digest]", result)
-  return NextResponse.json({ ok: true, ...result })
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 })
 }
