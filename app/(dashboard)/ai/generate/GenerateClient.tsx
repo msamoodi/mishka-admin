@@ -305,7 +305,6 @@ export default function GenerateClient({ books }: { books: Book[] }) {
   const [coursePrompt,    setCoursePrompt]    = useState("")
   const [generateImage,   setGenerateImage]   = useState(false)
   const [imagePrompt,     setImagePrompt]     = useState("")
-  const [generateAudio,        setGenerateAudio]        = useState(false)
   const [generateLessonImages, setGenerateLessonImages] = useState(false)
   const [lessonImageStyle,     setLessonImageStyle]     = useState("")
   const [thumbnailUrl,         setThumbnailUrl]         = useState<string | null>(null)
@@ -372,7 +371,7 @@ export default function GenerateClient({ books }: { books: Book[] }) {
       const res = await fetch(withBasePath("/api/ai/save-generated-course"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio, generateLessonImages, lessonImageStyle }),
+        body: JSON.stringify({ course, category: genCat, level: genLevel, thumbnailUrl, generateAudio: true, generateLessonImages, lessonImageStyle }),
       })
       if (!res.ok) {
         const json = await res.json()
@@ -681,23 +680,17 @@ export default function GenerateClient({ books }: { books: Book[] }) {
         )}
       </div>
 
-      {/* Audio narration */}
+      {/* Audio narration — always on */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">6. Audio Narration</h2>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={generateAudio}
-            onChange={e => setGenerateAudio(e.target.checked)}
-            className="w-4 h-4 accent-gray-900"
-          />
-          <span className="text-sm text-gray-700">Generate audio narration for each lesson (TTS)</span>
-        </label>
-        {generateAudio && (
-          <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Audio is generated when saving the course. This adds 1–2 minutes to save time.
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600 shrink-0">
+            <path d="M12 3a9 9 0 110 18A9 9 0 0112 3z" fill="#dcfce7" stroke="#16a34a" strokeWidth="1.5"/>
+            <path d="M8 12l3 3 5-5" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-sm text-gray-700">Audio narration is generated for every lesson (OpenAI TTS · <span className="font-medium">tts-1</span>, voice: nova)</span>
+        </div>
+        <p className="mt-2 text-xs text-gray-400 pl-7">Generated at save time. Adds ~1–2 min for a full course.</p>
       </div>
 
       {/* Lesson images */}
