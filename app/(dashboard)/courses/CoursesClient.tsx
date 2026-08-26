@@ -5,6 +5,59 @@ import DeleteCourseButton from "./DeleteCourseButton"
 import { SortableTh } from "@/components/SortableTh"
 import { categoryLabel } from "@/lib/categoryLabel"
 
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "https://app.mishkaapp.com"
+
+function RefreshCacheButton() {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle")
+
+  const handleClick = async () => {
+    if (state === "loading") return
+    setState("loading")
+    try {
+      const res = await fetch(`${APP_DOMAIN}/api/revalidate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      setState(res.ok ? "done" : "error")
+    } catch {
+      setState("error")
+    } finally {
+      setTimeout(() => setState("idle"), 3000)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={state === "loading"}
+      className={`h-9 px-4 text-sm font-medium rounded-lg border transition-colors flex items-center gap-2 ${
+        state === "done"
+          ? "bg-green-50 border-green-300 text-green-700"
+          : state === "error"
+          ? "bg-red-50 border-red-300 text-red-700"
+          : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+      }`}
+    >
+      {state === "loading" ? (
+        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      ) : state === "done" ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 0 0 6.93 6.93M4 15a8 8 0 0 0 13.07 2.07" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+      {state === "done" ? "Cache cleared" : state === "error" ? "Failed" : "Refresh Cache"}
+    </button>
+  )
+}
+
 type Course = {
   id: string
   slug: string
@@ -93,6 +146,7 @@ export default function CoursesClient({ courses }: { courses: Course[] }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <RefreshCacheButton />
           <Link
             href="/courses/import"
             className="h-9 px-4 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2"
