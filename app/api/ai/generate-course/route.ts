@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
           return
         }
 
-        const MAX_CHARS = 80_000
+        const MAX_CHARS = 24_000
         const perBook = Math.floor(MAX_CHARS / books.length)
         const bookContext = books
           .map((b: { title: string; author: string | null; extracted_text: string }, i: number) => {
@@ -170,7 +170,7 @@ ${bookContext}`
               schema: COURSE_JSON_SCHEMA.schema,
             },
           },
-          max_output_tokens: 32000,
+          max_output_tokens: 10000,
         })
 
         const raw = response.output_text
