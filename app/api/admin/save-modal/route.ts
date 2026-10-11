@@ -5,11 +5,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const {
     id,
+    modal_type,
     headline, headline_size, headline_color,
     sub_headline, sub_headline_size, sub_headline_color,
     description, description_size, description_color,
     cta_label, cta_url,
+    cta2_label, cta2_url,
     background_image_url,
+    media_url,
     show_rule, rule_value,
     expires_at,
   } = body
@@ -19,6 +22,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
   const payload = {
+    modal_type: modal_type === "mid_popup" ? "mid_popup" : "bt_modal",
     headline: headline.trim(),
     headline_size: Number(headline_size) || 38,
     headline_color: headline_color || "#ffffff",
@@ -30,7 +34,10 @@ export async function POST(req: NextRequest) {
     description_color: description_color || "#ffffff",
     cta_label: cta_label?.trim() || "Start Exploring",
     cta_url: cta_url?.trim() || null,
+    cta2_label: cta2_label?.trim() || null,
+    cta2_url: cta2_url?.trim() || null,
     background_image_url: background_image_url?.trim() || null,
+    media_url: media_url?.trim() || null,
     show_rule,
     rule_value: rule_value ? Number(rule_value) : null,
     expires_at: expires_at || null,
