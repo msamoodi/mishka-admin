@@ -190,11 +190,12 @@ ${bookContext}`
             : `Professional course thumbnail for a ${levelLabel}-level ${categoryLabel} online course titled "${course.course_name}". Clean, modern, abstract illustration. Square format, no text.`
 
           const imgResponse = await getOpenAI().images.generate({
-            model: "gpt-image-1",
+            model: "dall-e-3",
             prompt,
             n: 1,
             size: "1024x1024",
-            quality: "medium",
+            quality: "standard",
+            response_format: "b64_json",
           })
 
           const b64 = imgResponse.data?.[0]?.b64_json
